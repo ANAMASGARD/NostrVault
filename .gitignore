@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-web
 dist-ssr
 *.local
 
@@ -22,3 +23,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Verification artifacts and local platform configuration
+/test-results/
+/playwright-report/
+*.tsbuildinfo
+/src-tauri/gen/android/local.properties
+/src-tauri/gen/android/.gradle/
+/src-tauri/gen/android/**/build/
+/target/
+
+/src/generated/*.wasm
+/tools/runtime-probe/target/
+__pycache__/

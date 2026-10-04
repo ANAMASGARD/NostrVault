@@ -1,0 +1,23 @@
+# Observed compatibility
+
+These are local foundation checks on 2026-10-04, not product-support or signer certification. No account, production credential, private message, or public relay was used.
+
+| Surface                         | Actual environment                                                         | Evidence so far                                                                                                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Web                             | Chromium 153.0.8010.12 and Firefox 155.0, Playwright 1.63.0 on Fedora 44   | Real Rust/WASM Worker execution, keyboard/reload/viewport checks, missing/corrupt/unloadable module failures and retries; ten tests passed                               |
+| Linux                           | Fedora 44 x86_64, WebKitGTK 2.54.0, Tauri 2.12.1, tauri-driver 2.1.0, Xvfb | Rust checks and DEB/RPM packaging passed; release binary launch, real Rust IPC, denied unapproved IPC, and production CSP passed                                         |
+| Android build                   | Tauri 2.12.1, Java 17.0.20.1, NDK 27.1.12297006, SDK 37.0, Gradle 9.6.1    | x86_64 debug APK built; Kotlin formatting passed; strict scoped lint and exact unsuppressed audit passed with nine approved exceptions; unsigned ARM64 release APK built |
+| Android runtime                 | Emulator 37.2.12, API 36 / Android 16 x86_64, WebView 133.0.6943.137       | One installed-app instrumentation test passed: real Rust IPC, explicit ACL denial, Activity recreation                                                                   |
+| Signers                         | None tested                                                                | Required in 04 and 06; no support claims                                                                                                                                 |
+| Physical devices                | None tested                                                                | Required at the relevant signer/background/release milestones                                                                                                            |
+| Hosted CI / second Linux distro | Workflow defined, actionlint passed                                        | No hosted execution or Ubuntu native result observed                                                                                                                     |
+
+The emulator's SwiftShader renderer crashed before app installation. Mesa software rendering under Xvfb booted; this is a host-tool workaround, not a relaxed application check. Gradle's initial distribution download timed out; the exact official distribution was fetched with curl and its pinned SHA-256 verified before seeding the wrapper cache. TLS and checksum checks remained enabled.
+
+Android local JVM unit tests currently report `NO-SOURCE`; this is not counted as coverage. The actual Android foundation evidence is the instrumented test on the running emulator. The nine approved lint exceptions, scope enforcement and re-review conditions are recorded in [Android lint decision](android-lint-blockers.md).
+
+The earlier `npm run verify:commit` invocation passed common, web, Rust and Linux checks, then failed at Android lint with nine errors. Its later Android steps were not reached; Android release and instrumentation evidence above came from separate runs.
+
+Approved follow-up: the web now compiles and executes a real Rust probe in a Worker. `npm run verify:web` passed 22 TypeScript tests, seven lint-policy tests, Rust probe format/Clippy/test/build, and ten Chromium/Firefox tests. Each browser proved actual WASM execution, missing/corrupt/aborted module failures and successful retries. The original four browser tests were UI-only evidence.
+
+Regenerated Android Wry output matched its approved source hashes. Independent `python3 scripts/verify-android-lint.py` passed: strict unsuppressed audit found exactly the nine approved issue/path/message tuples and one known hint; the scoped lint run had zero errors/warnings and the same hint. No source patches or version upgrades were made. Final `npm run verify:commit` passed all 17 steps, including Linux packages/runtime, both lint runs, Android debug/unsigned ARM64 builds and one emulator instrumentation test with zero failures/errors/skips. Milestone 01 gates are satisfied; changes remain uncommitted pending authorization.

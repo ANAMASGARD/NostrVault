@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-runtime-info"
+description = "Read the compiled platform and application version."
+commands.allow = ["runtime_info"]
