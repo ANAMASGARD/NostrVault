@@ -20,6 +20,7 @@ driver.on("error", (error) => {
   driverError = error;
 });
 let session;
+let teardownFailure;
 async function request(path, body, method = "POST") {
   const response = await fetch(`http://127.0.0.1:4445${path}`, {
     method,
@@ -104,5 +105,22 @@ try {
     await Promise.race([exited, delay(5000)]);
     if (driver.exitCode === null) driver.kill("SIGKILL");
   }
-  await rm(profile, { recursive: true, force: true });
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      await rm(profile, {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+        retryDelay: 100,
+      });
+      break;
+    } catch (error) {
+      if (error?.code !== "ENOTEMPTY" || attempt === 29) {
+        teardownFailure = error;
+        break;
+      }
+      await delay(100);
+    }
+  }
 }
+if (teardownFailure) throw teardownFailure;

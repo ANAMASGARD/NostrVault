@@ -55,4 +55,18 @@ Not verified: physical devices, real signers, hosted CI/second Linux distributio
 
 Cleanup: stopped the task-owned emulator and Gradle 9.6.1 daemon; adb confirms no connected devices. Unrelated processes were preserved.
 
-Next: stop for maintainer authorization to create `build: establish multiplatform verification and product contracts`. Do not commit, push or start 02 under the current instruction.
+At the original checkpoint, wait for maintainer authorization to create `build: establish multiplatform verification and product contracts`; that wait ended when the user explicitly authorized staging, signed commits, push, and PR creation below. Do not merge or start 02.
+
+## 2026-10-04 — hosted CI remediation (Milestone 01 follow-up)
+
+The authorized milestone commit `2205369a29df44e038731459eed4c1858b2c2954` is signed off, pushed on `milestone-01-foundations`, and included in open PR #1. The user authorized additional signed commits, push, and PR work. Do not merge or start Milestone 02.
+
+Implemented follow-up fixes:
+
+- `.github/workflows/verify.yml` uses explicit `$ANDROID_HOME/cmdline-tools/latest/bin` paths for `sdkmanager` and `avdmanager`, and `$ANDROID_HOME/platform-tools/adb` for device operations. This fixes the two initial hosted Android runs, which failed before compilation because `sdkmanager` was not on PATH.
+- `scripts/test-linux.mjs` retries removal of the isolated Tauri profile on transient `ENOTEMPTY` during WebKit/Tauri teardown.
+- `docs/compatibility.md` and this status record distinguish the initial hosted failure, local emulator availability failure, and final successful local run.
+
+Verification on the exact follow-up candidate: `npm run verify:linux` passed; actionlint and `git diff --check` passed. The first full rerun stopped at Android instrumentation because `emulator-5554` had exited; no pass was claimed. Restarted the documented Mesa/Xvfb emulator and reran `npm run verify:commit`: all 17 steps passed, including Android lint audit/scoped lint, unsigned ARM64 release build, installed emulator instrumentation (1 test, zero failures/errors/skips), and Linux package/runtime checks. `test-results/gate-all.json` records `complete: true`. The two previous hosted run IDs were `37222489213` and `37222498966`; new hosted results for the correction are pending push.
+
+Next: stage only `.github/workflows/verify.yml`, `scripts/test-linux.mjs`, `docs/compatibility.md`, and `MEMORY/memory.md`; review the exact staged patch; create a DCO-signed remediation commit; push; monitor PR #1 checks and update its description with observed hosted results. Do not merge or advance milestone.
