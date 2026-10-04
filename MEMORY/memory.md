@@ -70,3 +70,11 @@ Implemented follow-up fixes:
 Verification on the exact follow-up candidate: `npm run verify:linux` passed; actionlint and `git diff --check` passed. The first full rerun stopped at Android instrumentation because `emulator-5554` had exited; no pass was claimed. Restarted the documented Mesa/Xvfb emulator and reran `npm run verify:commit`: all 17 steps passed, including Android lint audit/scoped lint, unsigned ARM64 release build, installed emulator instrumentation (1 test, zero failures/errors/skips), and Linux package/runtime checks. `test-results/gate-all.json` records `complete: true`. The two previous hosted run IDs were `37222489213` and `37222498966`; new hosted results for the correction are pending push.
 
 Next: stage only `.github/workflows/verify.yml`, `scripts/test-linux.mjs`, `docs/compatibility.md`, and `MEMORY/memory.md`; review the exact staged patch; create a DCO-signed remediation commit; push; monitor PR #1 checks and update its description with observed hosted results. Do not merge or advance milestone.
+
+## 2026-10-04 — Android hosted startup investigation
+
+Follow-up commit `7619aa6` was signed off and pushed. Hosted SDK installation now succeeds. Android job `111499136287` then failed with exit 124 waiting 180 seconds for `emulator-5554`; shutdown reported connection refused. The Android gate was skipped, so this is setup failure rather than a failed app test. Startup output was redirected to an unreported file, preventing identification of the emulator's exit reason from the existing logs.
+
+User requested minimal, maintainable tests. The four PR entries are two platform jobs duplicated by push and PR triggers. Removed feature-branch push triggering (retained PR/main/manual runs), and added printing of the emulator startup log on failure. No new tests or weakened assertions. Next: run local verification, push this diagnostic correction, inspect the hosted emulator exit evidence, then fix the actual cause and verify remotely.
+
+Diagnostic candidate verification: `npm run verify:commit` passed all 17 steps, including one API 36 emulator instrumentation test. Actionlint passed. The hosted emulator exit reason remains unknown until its startup log is observed.

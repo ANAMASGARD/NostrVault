@@ -2,7 +2,7 @@ name: Milestone verification
 on:
   pull_request:
   push:
-    branches: [main, "milestone-01-foundations"]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -60,6 +60,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri libegl1
       - name: Start disposable emulator
         run: |
+          trap 'tail -n 100 "$RUNNER_TEMP/emulator.log"' ERR
           ADB="$ANDROID_HOME/platform-tools/adb"
           sudo chmod a+rw /dev/kvm
           printf 'no\n' | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --name nostrvault-ci --package "system-images;android-36;google_apis;x86_64" --device pixel_6
