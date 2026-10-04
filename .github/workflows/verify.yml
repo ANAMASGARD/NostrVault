@@ -40,11 +40,6 @@ jobs:
         run: |
           command -v WebKitWebDriver
           npm run verify:web-linux
-      - name: Diagnose accessibility bridge on failed Linux startup
-        if: failure()
-        env:
-          NO_AT_BRIDGE: "1"
-        run: npm run test:linux
       - name: Preserve failed Linux reproduction
         if: failure()
         run: |

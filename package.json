@@ -15,7 +15,7 @@
     "format:check": "prettier --check src tests scripts docs README.md MEMORY/memory.md *.json *.ts *.js .github .prettierrc.json",
     "test:unit": "vitest run",
     "test:web": "playwright test",
-    "test:linux": "xvfb-run -a node scripts/test-linux.mjs",
+    "test:linux": "xvfb-run -a dbus-run-session -- node scripts/test-linux.mjs",
     "verify:commit": "node scripts/verify.mjs all",
     "verify:web": "node scripts/verify.mjs web",
     "verify:web-linux": "node scripts/verify.mjs web-linux",

@@ -29,7 +29,7 @@ Set `ANDROID_SERIAL=emulator-5554` only after that disposable emulator is booted
 - TypeScript: strict compiler and typed ESLint, React hooks and refresh rules, warnings fail lint.
 - Unit: host-response validation and capability/CSP contract checks; Rust serialized runtime contract.
 - Web: compile `tools/runtime-probe` to wasm32, bundle a distinct WASM asset and Worker, and execute the real Rust probe in Chromium and Firefox. Validate typed replies, keyboard activation, reload and narrow viewport. Missing, corrupt and aborted module responses must visibly fail and retry successfully. No native injection, external requests or TypeScript success fallback.
-- Linux: locked Clippy/tests, production DEB/RPM build, real compiled application launch/Rust IPC, rejected unauthorized IPC, blocked inline script under production CSP.
+- Linux: locked Clippy/tests, production DEB/RPM build, isolated Xvfb/D-Bus session, real compiled application launch/Rust IPC, rejected unauthorized IPC, blocked inline script under production CSP.
 - Android: native release then debug compilation, Kotlin formatting, Android lint/audit checks, installed emulator instrumentation. Building release first avoids a redundant debug rebuild. The empty JVM unit task is omitted; add a unit-test gate when actual JVM tests land. The gate fails if the emulator is absent or instrumentation fails. It reuses the native library just built by the Tauri CLI for direct Gradle lint/test tasks; this avoids invoking the CLI-only Rust task without its IPC server.
 - Final: `git diff --check` and review intended paths before an authorized local commit.
 
