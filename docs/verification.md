@@ -46,3 +46,9 @@ Run `python3 scripts/verify-android-lint.py` after the Tauri Android debug build
 Then the same strict lint task runs with the nine approved scoped exceptions and must succeed with zero errors/warnings and only the known hint. Both reports/logs remain available under ignored build/test output. Android lint's file and regex selectors are alternatives, so the independent unsuppressed audit enforces their conjunction instead of pretending a path-plus-regex XML entry provides it. No severity setting changes between these runs. The audit's expected failure is accepted only after exact structured-report comparison, never from its exit code alone.
 
 `python3 -m unittest discover -s tests/tooling -p 'test_*.py'` covers changed source/version, application-owned findings, unexpected/stale findings and reviewed-report boundaries. The full gate runs these tests and both lint passes. See [lint decision](android-lint-blockers.md) for rationale, risks and re-review conditions.
+
+## CI runtime target
+
+PR CI runs two platform jobs. `verify:web-linux` runs common formatting, types, lint and unit guardrails once before the web and Linux gates; the Android job runs its platform checks directly. `verify:commit` retains the complete local milestone gate. Rust dependency/driver caches are separate by job, and Android uses the pinned Gradle cache action without publishing build scans or dependency graphs. Cache hits never replace compiling changed code or executing tests.
+
+The target is under seven minutes on a warmed hosted runner. Cold toolchains and cache misses can exceed that; report measured durations before claiming the target achieved. Failed Linux runs preserve the exact built binary for three days and print live process/listening-port diagnostics before cleanup. These are diagnostic artifacts, not release publication.

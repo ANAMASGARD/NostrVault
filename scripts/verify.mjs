@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 const mode = process.argv[2] ?? "all";
-if (!["all", "web", "linux", "android"].includes(mode))
+if (!["all", "web", "linux", "android", "web-linux"].includes(mode))
   throw new Error(`Unknown gate: ${mode}`);
 const common = [
   ["npm", "run", "format:check"],
@@ -89,7 +89,11 @@ const gates = {
 };
 const commands = [
   ...common,
-  ...(mode === "all" ? Object.values(gates).flat() : gates[mode]),
+  ...(mode === "all"
+    ? Object.values(gates).flat()
+    : mode === "web-linux"
+      ? [...gates.web, ...gates.linux]
+      : gates[mode]),
   ["git", "diff", "--check"],
 ];
 const results = [];

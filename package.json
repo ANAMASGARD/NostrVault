@@ -18,6 +18,7 @@
     "test:linux": "xvfb-run -a node scripts/test-linux.mjs",
     "verify:commit": "node scripts/verify.mjs all",
     "verify:web": "node scripts/verify.mjs web",
+    "verify:web-linux": "node scripts/verify.mjs web-linux",
     "verify:linux": "node scripts/verify.mjs linux",
     "verify:android": "node scripts/verify.mjs android",
     "build:wasm": "node scripts/build-wasm.mjs",

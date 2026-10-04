@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -96,6 +96,14 @@ try {
   console.log(
     "PASS Linux packaged release launch, real Rust IPC, denied unapproved IPC, production CSP",
   );
+} catch (error) {
+  console.error(
+    `Linux smoke failed ${session ? "during the session" : "before session creation"}`,
+  );
+  // Inspect live children before driver teardown; these commands print no event data.
+  spawnSync("ps", ["-eo", "pid,ppid,stat,comm"], { stdio: "inherit" });
+  spawnSync("ss", ["-ltnp"], { stdio: "inherit" });
+  throw error;
 } finally {
   if (session)
     await request(`/session/${session}`, undefined, "DELETE").catch(() => {});

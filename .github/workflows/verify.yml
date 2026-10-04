@@ -27,17 +27,38 @@ jobs:
       - run: npm ci
       - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev patchelf xvfb webkit2gtk-driver
       - run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: |
+            src-tauri -> target
+            tools/runtime-probe -> target
+          cache-directories: target/runtime-probe
+          cache-on-failure: true
       - run: cargo install tauri-driver --version 2.1.0 --locked
       - run: npx --no-install playwright install --with-deps chromium firefox
-      - run: npm run verify:web
-      - name: Verify Linux
-        env:
-          # Xvfb has no desktop compositor; keep this setting scoped to CI.
-          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+      - name: Verify web and Linux
         run: |
           command -v WebKitWebDriver
-          trap 'ps -eo pid,ppid,stat,comm | rg "nostrvault|WebKit|Xvfb|tauri-driver"' ERR
-          npm run verify:linux
+          npm run verify:web-linux
+      - name: Diagnose accessibility bridge on failed Linux startup
+        if: failure()
+        env:
+          NO_AT_BRIDGE: "1"
+        run: npm run test:linux
+      - name: Preserve failed Linux reproduction
+        if: failure()
+        run: |
+          if [ -f src-tauri/target/release/nostrvault ]; then
+            tar -czf "$RUNNER_TEMP/linux-smoke.tar.gz" src-tauri/target/release/nostrvault
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: linux-smoke-diagnostics
+          path: |
+            ${{ runner.temp }}/linux-smoke.tar.gz
+            test-results/gate-web-linux.json
+          retention-days: 3
   android:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -56,9 +77,19 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
       - run: npm install --global npm@11.8.0
       - run: npm ci
       - run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: |
+            src-tauri -> target
+            tools/runtime-probe -> target
+          cache-directories: target/runtime-probe
+          cache-on-failure: true
       - name: Install Android SDK components
         run: |
           set +o pipefail
@@ -83,7 +114,7 @@ jobs:
             sleep 2
           done
           exit 1
-      - run: npm run verify:android
+      - run: node scripts/verify-android.mjs
       - name: Stop disposable emulator
         if: always()
         run: $ANDROID_HOME/platform-tools/adb -s "$ANDROID_SERIAL" emu kill || true
