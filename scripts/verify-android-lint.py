@@ -5,7 +5,7 @@ from android_lint_policy import ANDROID, ROOT, load_policy, verify_sources, read
 
 policy = load_policy()
 verify_sources(policy)
-base = [str(ANDROID / "gradlew"), "--project-dir", str(ANDROID), "--no-daemon",
+base = [str(ANDROID / "gradlew"), "--project-dir", str(ANDROID), "--daemon",
         "--console=plain", "-PabiList=x86_64", "-ParchList=x86_64", "-PtargetList=x86_64",
         ":app:lintUniversalDebug", "-x", ":app:rustBuildUniversalDebug"]
 for audit in (True, False):

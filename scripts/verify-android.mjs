@@ -22,7 +22,7 @@ function run(command, args, cwd = process.cwd()) {
   if (result.status !== 0) process.exit(result.status || 1);
 }
 const gradle = [
-  "--no-daemon",
+  "--daemon",
   "--console=plain",
   "-PabiList=x86_64",
   "-ParchList=x86_64",
