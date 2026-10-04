@@ -32,10 +32,11 @@ jobs:
       - run: npm run verify:web
       - name: Verify Linux
         env:
-          WEBKIT_DEBUG: Process,Automation
+          # Xvfb has no desktop compositor; keep this setting scoped to CI.
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
         run: |
           command -v WebKitWebDriver
-          trap 'sudo dmesg | tail -n 60' ERR
+          trap 'ps -eo pid,ppid,stat,comm | rg "nostrvault|WebKit|Xvfb|tauri-driver"' ERR
           npm run verify:linux
   android:
     runs-on: ubuntu-24.04
