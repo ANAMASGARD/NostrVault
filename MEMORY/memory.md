@@ -1,4 +1,52 @@
-# Implementation status
+## Milestone 02 implementation — 2026-10-05 — milestone-02-core
+
+- **Implemented:** Root Cargo workspace with one lockfile, portable `crates/vault-core`, SQLite/JNI `crates/vault-native`, Worker adapter `crates/vault-wasm`, shared age adapter, bounded runtime contracts and isolated encrypted fixture stores. Tauri permits only runtime health and the foundation command. Browser replaces the numeric probe with the real shared engine; old probe sources and nested lockfiles were removed after all replacement platform prechecks passed.
+- **Crypto:** Maintained Nostr validation; Argon2id v19 proof-only 8 MiB/t=1/p=1 plus XChaCha20-Poly1305 key wrapping/records; separate age recipient/passphrase compatibility. Shared negative vectors run in real hosts. Reference age fixtures come from Go age 1.2.1, Argon2 KAT from system libargon2; provenance is committed. Secure host entropy has no deterministic fallback. Public fixture passwords/keys do not protect user data and are not production defaults.
+- **Preserved:** Prior handoff update below; existing locked dependency versions, approved Android lint exceptions, CSP/ACL regressions, both browsers, the 15-milestone scope and milestone 06 checkpoint. No signer, network, production vault, archive importer, scheduler, or recovery product is implemented.
+- **Prechecks verified:** Native/WASM core compilation and dependency boundaries; strict Rust/TypeScript lint; 29 current frontend units; 16 Chromium/Firefox tests after probe replacement; native age/storage tests; DEB/RPM plus actual Linux foundation/ACL/CSP; ARM64 release and x86_64 debug APKs; strict Android lint audit; fresh headless JNI and UI/recreation/shared-engine emulator tests. Final aggregate verification subsequently passed all 19 steps (details below).
+- **Documents:** Architecture/verification/compatibility updated; template-based System Design DOCX rendered and all seven pages inspected. No final-gate success is asserted by the document.
+- **Limits:** ARM64 build-only; no physical device, signer, hosted CI for this unpushed branch, production parameter benchmark, real vault or recovery evidence. Local cold-build timing includes compilation and lock contention, not a five-minute CI result.
+- **Delivery:** Required gates passed; this entry accompanies the authorized signed-off local milestone commit. No push, PR, release, deployment, or milestone 03 work. Next is maintainer review of milestone 02 and separate direction for milestone 03.
+
+### Milestone 02 final-candidate verification
+
+`npm run verify:commit` exited 0: **19/19 steps passed** in **4m37.15s** locally with warmed caches, two Cargo jobs, Java 17, NDK 27.1.12297006 and the API 36 x86_64 emulator. This is not hosted CI or a cold-build timing promise. GNU time reported maximum resident set size 1,343,332 KiB for the command tree; this is not isolated KDF memory measurement. Production crypto tuning remains milestone 03.
+
+| Exact command                                                                        | Result | Wall time |
+| ------------------------------------------------------------------------------------ | ------ | --------- |
+| `npm run build:wasm`                                                                 | Passed | 0.68 s    |
+| `npm run format:check`                                                               | Passed | 0.86 s    |
+| `npm run typecheck`                                                                  | Passed | 1.44 s    |
+| `npm run lint`                                                                       | Passed | 2.86 s    |
+| `npm run test:unit`                                                                  | Passed | 0.88 s    |
+| `python3 -m unittest discover -s tests/tooling -p test_*.py`                         | Passed | 0.09 s    |
+| `cargo fmt --all -- --check`                                                         | Passed | 0.06 s    |
+| `node scripts/verify-core-boundary.mjs`                                              | Passed | 0.28 s    |
+| `cargo clippy --locked -p vault-core --all-targets -- -D warnings`                   | Passed | 0.59 s    |
+| `cargo test --locked -p vault-core`                                                  | Passed | 0.97 s    |
+| `cargo clippy --locked -p vault-wasm --target wasm32-unknown-unknown -- -D warnings` | Passed | 0.61 s    |
+| `npm run build:web`                                                                  | Passed | 2.61 s    |
+| `npm run test:web`                                                                   | Passed | 24.58 s   |
+| `cargo clippy --locked -p vault-native -p nostrvault --all-targets -- -D warnings`   | Passed | 1.65 s    |
+| `cargo test --locked -p vault-native -p nostrvault`                                  | Passed | 85.97 s   |
+| `npm run tauri -- build --bundles deb,rpm -- --locked`                               | Passed | 68.31 s   |
+| `npm run test:linux`                                                                 | Passed | 10.01 s   |
+| `node scripts/verify-android.mjs`                                                    | Passed | 74.3 s    |
+| `git diff --check`                                                                   | Passed | 0.03 s    |
+
+Coverage: 29 TypeScript unit cases, seven Python policy tests, two parameterized core tests, three native tests, one Tauri contract test, 16 Chromium/Firefox tests, and two separately invoked Android instrumentation tests (headless JNI, then UI/recreation). ARM64 release compilation and packaging passed; runtime remains unverified. Android strict lint retained the exact approved exceptions. Workflow actionlint also passed. Gate evidence is ignored `test-results/gate-all.json`; full local log is `/tmp/nostrvault-m02-final-gate.log`. Documentation-only evidence edits followed the gate and were checked for formatting/diff hygiene before commit.
+
+# Historical implementation status
+
+## Current handoff — 2026-10-05 — milestone-02-core
+
+- **Completed:** Milestone 01 and its CI fixes were merged through PR #1 into `main` at `a77e5a9dfedf5052f4fa8cbe5ef1cc8c19f0c6c8`. The final feature commit was `68f959c748d09da07107a09b10cf70d03dcd425c`. Earlier status entries below are historical; their pending commit/push/hosted-verification statements are superseded by this handoff.
+- **Implemented:** Pinned platform tooling and dependency locks; typed native Rust IPC and actual browser Worker/WASM probe; restricted native capabilities and production CSP; Linux packages and Android builds/instrumentation; product, privacy and recovery contracts. No vault, signer integration, relay collection, conversation backup, archive or restoration functionality is implemented yet.
+- **CI fixes:** Correct Android SDK/AVD/adb paths; isolated Linux D-Bus session under Xvfb resolves the observed hosted startup timeout; two PR jobs without duplicate push runs; common checks run once; Rust/Gradle caches, Gradle daemon reuse and task-output caching. Runtime/security assertions remain intact.
+- **Verified:** The final candidate passed all 17 local `npm run verify:commit` gates. GitHub run `37229772480` on `68f959c` passed web/Linux in **3m41s** and Android in **8m51s**. This includes real WASM execution, native Rust IPC, Linux ACL/CSP checks, Android lint audit/scoped lint, debug/unsigned ARM64 builds and one emulator instrumentation test. These are feature-head results, not a claim that the merge commit was separately tested.
+- **Remaining limits:** Android's requested five-minute CI target is unmet. Physical Android devices, real signer flows, large-history usability, backup/recovery and milestones 02–15 remain unverified/unimplemented. Emulator results do not establish physical-device support.
+- **Repository preparation:** Fetched GitHub `origin/main`, updated local `main` to the merge commit via `git rebase origin/main` (fast-forward; no local commits to replay), and created local `milestone-02-core` from it. Preserved `milestone-01-foundations`. This handoff update is uncommitted; the new branch has not been pushed.
+- **Next:** Start milestone 02 from the existing approved plan: prove shared native/WASM validation and encryption-library compatibility, typed platform/storage contracts, archive crypto vectors and Android headless JNI. Milestone 02 implementation has not started. The first product checkpoint remains milestone 06: real signer → approved relay → captured/decrypted message → restart → offline reading without network or signer. Do not claim this checkpoint already passes.
 
 ## 2026-10-04 — milestone-01-foundations — Milestone 01 gates passed
 

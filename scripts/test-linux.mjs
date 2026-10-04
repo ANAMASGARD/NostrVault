@@ -79,6 +79,22 @@ try {
     await delay(250);
   }
   assert.equal(status, "Native runtime ready: linux · 0.1.0");
+  await script(
+    'Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Check shared engine").click()',
+  );
+  let foundation;
+  for (let attempt = 0; attempt < 120; attempt++) {
+    foundation = await script(
+      'return document.querySelector("[data-testid=foundation-result]").textContent',
+    );
+    if (foundation.startsWith("Rust foundation ready")) break;
+    if (foundation.includes("failed")) throw new Error(foundation);
+    await delay(250);
+  }
+  assert(
+    foundation.startsWith("Rust foundation ready"),
+    `Foundation proof did not finish: ${foundation}`,
+  );
   const denied = await script(
     `const done = arguments[arguments.length - 1];
     window.__TAURI_INTERNALS__.invoke("plugin:window|set_title", { label: "main", title: "Should be denied" })
@@ -94,7 +110,7 @@ try {
     "Production CSP must reject inline scripts",
   );
   console.log(
-    "PASS Linux packaged release launch, real Rust IPC, denied unapproved IPC, production CSP",
+    "PASS Linux packaged release launch, shared crypto/storage proof, real Rust IPC, denied unapproved IPC, production CSP",
   );
 } catch (error) {
   console.error(

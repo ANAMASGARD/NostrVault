@@ -19,3 +19,5 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# JNI names are part of the independent Rust library ABI.
+-keep class com.nostrvault.app.HeadlessFoundation { *; }

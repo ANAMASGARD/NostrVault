@@ -11,6 +11,8 @@ export default defineConfig([
       "dist/**",
       "dist-web/**",
       "src-tauri/**",
+      "src/generated/**",
+      "crates/**/target/**",
       ".agents/**",
       "skills/**",
       "node_modules/**",

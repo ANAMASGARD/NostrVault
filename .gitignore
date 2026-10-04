@@ -33,6 +33,6 @@ dist-ssr
 /src-tauri/gen/android/**/build/
 /target/
 
-/src/generated/*.wasm
-/tools/runtime-probe/target/
+/src/generated/
+/crates/*/target/
 __pycache__/

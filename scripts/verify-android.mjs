@@ -28,6 +28,8 @@ const gradle = [
   "-ParchList=x86_64",
   "-PtargetList=x86_64",
 ];
+// Build the independent JNI library before packaging each ABI.
+run("node", ["scripts/build-headless-android.mjs", "aarch64"]);
 // Package release first, then leave the debug native assets ready for the emulator.
 run("npm", [
   "run",
@@ -42,6 +44,7 @@ run("npm", [
   "--",
   "--locked",
 ]);
+run("node", ["scripts/build-headless-android.mjs", "x86_64"]);
 run("npm", [
   "run",
   "tauri",
@@ -79,13 +82,17 @@ if (boot.status !== 0 || boot.stdout.trim() !== "1")
   throw new Error(
     `Emulator ${serial} is not booted (adb exit ${boot.status}, response ${JSON.stringify(boot.stdout.trim())}, diagnostic ${JSON.stringify(boot.stderr.trim())}). Build checks do not replace instrumentation.`,
   );
-run(
-  "./gradlew",
-  [
-    ...gradle,
-    ":app:connectedUniversalDebugAndroidTest",
-    "-x",
-    ":app:rustBuildUniversalDebug",
-  ],
-  "src-tauri/gen/android",
-);
+// Separate instrumentation invocations ensure the headless proof starts before UI setup.
+for (const testClass of ["HeadlessFoundationTest", "FoundationTest"]) {
+  run(
+    "./gradlew",
+    [
+      ...gradle,
+      `-Pandroid.testInstrumentationRunnerArguments.class=com.nostrvault.app.${testClass}`,
+      ":app:connectedUniversalDebugAndroidTest",
+      "-x",
+      ":app:rustBuildUniversalDebug",
+    ],
+    "src-tauri/gen/android",
+  );
+}

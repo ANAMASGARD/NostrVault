@@ -27,10 +27,11 @@ test("loads the production web app, checks runtime, and reloads without native I
   await page.getByRole("button", { name: "Check runtime" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("status")).toHaveText(
-    "Rust/WASM runtime ready · probe 42 → 85",
+    /Rust\/WASM foundation ready · \d+ fixture bytes · encrypted storage reopened/,
+    { timeout: 60000 },
   );
-  expect(wasmRequests).toBe(1);
-  expect(workers).toBe(1);
+  expect(wasmRequests).toBe(2);
+  expect(workers).toBe(2);
   await page.reload();
   await expect(page.getByRole("status")).toHaveText("Not checked");
   expect(await page.evaluate(() => "__TAURI_INTERNALS__" in window)).toBe(
@@ -72,18 +73,19 @@ for (const failure of ["missing", "corrupt", "unloadable"] as const) {
         });
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Check runtime" }).click();
-    await expect(page.getByRole("status")).toHaveText(
-      "Runtime check failed. Try again.",
+    await page.getByRole("button", { name: "Check shared engine" }).click();
+    await expect(page.getByTestId("foundation-result")).toHaveText(
+      "Foundation check failed or cancelled. Try again.",
     );
     expect(intercepted).toBe(1);
     await expect(
-      page.getByRole("button", { name: "Check runtime" }),
+      page.getByRole("button", { name: "Check shared engine" }),
     ).toBeEnabled();
     await context.unroute("**/*.wasm");
-    await page.getByRole("button", { name: "Check runtime" }).click();
-    await expect(page.getByRole("status")).toHaveText(
-      "Rust/WASM runtime ready · probe 42 → 85",
+    await page.getByRole("button", { name: "Check shared engine" }).click();
+    await expect(page.getByTestId("foundation-result")).toHaveText(
+      /Rust\/WASM foundation ready · \d+ fixture bytes · encrypted storage reopened/,
+      { timeout: 60000 },
     );
   });
 }

@@ -1,3 +1,5 @@
+import { checkFoundation } from "./foundation";
+
 export type NativeRuntime = {
   platform: "linux" | "android";
   version: string;
@@ -25,7 +27,5 @@ export async function checkRuntime(): Promise<string> {
     const result = parseNativeRuntime(await invoke<unknown>("runtime_info"));
     return `Native runtime ready: ${result.platform} · ${result.version}`;
   }
-  const { probeWasm } = await import("./wasm-runtime");
-  const result = await probeWasm(42);
-  return `Rust/WASM runtime ready · probe 42 → ${result}`;
+  return checkFoundation();
 }
