@@ -1,0 +1,115 @@
+name: Milestone verification
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm install --global npm@11.8.0
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev patchelf xvfb webkit2gtk-driver
+      - run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: |
+            src-tauri -> target
+            tools/runtime-probe -> target
+          cache-directories: target/runtime-probe
+          cache-on-failure: true
+      - run: cargo install tauri-driver --version 2.1.0 --locked
+      - run: npx --no-install playwright install --with-deps chromium firefox
+      - name: Verify web and Linux
+        run: |
+          command -v WebKitWebDriver
+          npm run verify:web-linux
+      - name: Preserve failed Linux reproduction
+        if: failure()
+        run: |
+          if [ -f src-tauri/target/release/nostrvault ]; then
+            tar -czf "$RUNNER_TEMP/linux-smoke.tar.gz" src-tauri/target/release/nostrvault
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: linux-smoke-diagnostics
+          path: |
+            ${{ runner.temp }}/linux-smoke.tar.gz
+            test-results/gate-web-linux.json
+          retention-days: 3
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ANDROID_SERIAL: emulator-5554
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+      - run: npm install --global npm@11.8.0
+      - run: npm ci
+      - run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: |
+            src-tauri -> target
+            tools/runtime-probe -> target
+          cache-directories: target/runtime-probe
+          cache-on-failure: true
+      - name: Install Android SDK components
+        run: |
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" "ndk;27.1.12297006" "emulator" "system-images;android-36;google_apis;x86_64"
+      - run: echo "NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
+      - run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri libegl1
+      - name: Start disposable emulator
+        run: |
+          trap 'tail -n 100 "$RUNNER_TEMP/emulator.log"' ERR
+          ADB="$ANDROID_HOME/platform-tools/adb"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          sudo chmod a+rw /dev/kvm
+          printf 'no\n' | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --name nostrvault-ci --package "system-images;android-36;google_apis;x86_64" --device pixel_6
+          test -f "$ANDROID_AVD_HOME/nostrvault-ci.ini"
+          "$ADB" start-server
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a "$ANDROID_HOME/emulator/emulator" -avd nostrvault-ci -no-window -no-audio -no-boot-anim -no-snapshot -gpu host -feature -Vulkan -memory 2048 -cores 2 > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          timeout 180 "$ADB" -s "$ANDROID_SERIAL" wait-for-device
+          for attempt in $(seq 1 90); do
+            completed=$("$ADB" -s "$ANDROID_SERIAL" shell getprop sys.boot_completed | tr -d '\r')
+            if [ "$completed" = "1" ]; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - run: node scripts/verify-android.mjs
+      - name: Stop disposable emulator
+        if: always()
+        run: $ANDROID_HOME/platform-tools/adb -s "$ANDROID_SERIAL" emu kill || true
