@@ -30,7 +30,13 @@ jobs:
       - run: cargo install tauri-driver --version 2.1.0 --locked
       - run: npx --no-install playwright install --with-deps chromium firefox
       - run: npm run verify:web
-      - run: npm run verify:linux
+      - name: Verify Linux
+        env:
+          WEBKIT_DEBUG: Process,Automation
+        run: |
+          command -v WebKitWebDriver
+          trap 'sudo dmesg | tail -n 60' ERR
+          npm run verify:linux
   android:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -62,8 +68,11 @@ jobs:
         run: |
           trap 'tail -n 100 "$RUNNER_TEMP/emulator.log"' ERR
           ADB="$ANDROID_HOME/platform-tools/adb"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           sudo chmod a+rw /dev/kvm
           printf 'no\n' | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --name nostrvault-ci --package "system-images;android-36;google_apis;x86_64" --device pixel_6
+          test -f "$ANDROID_AVD_HOME/nostrvault-ci.ini"
           "$ADB" start-server
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a "$ANDROID_HOME/emulator/emulator" -avd nostrvault-ci -no-window -no-audio -no-boot-anim -no-snapshot -gpu host -feature -Vulkan -memory 2048 -cores 2 > "$RUNNER_TEMP/emulator.log" 2>&1 &
           timeout 180 "$ADB" -s "$ANDROID_SERIAL" wait-for-device

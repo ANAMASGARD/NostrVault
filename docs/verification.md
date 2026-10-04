@@ -37,6 +37,8 @@ The main command reruns the complete gate before every milestone commit. Individ
 
 PR CI runs two platform jobs: web/Linux and Android. Branch pushes do not duplicate those jobs; pushes to `main` and manual dispatch still run verification. Emulator startup failures print their captured log. Existing runtime and failure-path tests remain; no extra tests are added for workflow plumbing.
 
+CI sets one temporary `ANDROID_AVD_HOME` for AVD creation and emulator lookup and checks the generated configuration before starting the emulator. This avoids mismatched defaults between SDK tools and the emulator.
+
 ## Reviewed Android lint exceptions
 
 Run `python3 scripts/verify-android-lint.py` after the Tauri Android debug build, with the documented Java/SDK/NDK environment. It first checks pinned Wry version and generated-source SHA-256 values, then runs strict lint with an empty exception configuration. That audit must fail with exactly the nine approved issue/path/message tuples plus the single documented TrimLambda hint. A changed version pair, source hash, application-owned finding, extra finding or removed finding requires re-review.
