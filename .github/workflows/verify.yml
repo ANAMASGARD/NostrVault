@@ -29,11 +29,9 @@ jobs:
       - run: rustup show
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          workspaces: |
-            src-tauri -> target
-            tools/runtime-probe -> target
-          cache-directories: target/runtime-probe
+          workspaces: . -> src-tauri/target
           cache-on-failure: true
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
       - run: cargo install tauri-driver --version 2.1.0 --locked
       - run: npx --no-install playwright install --with-deps chromium firefox
       - name: Verify web and Linux
@@ -80,11 +78,9 @@ jobs:
       - run: rustup show
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          workspaces: |
-            src-tauri -> target
-            tools/runtime-probe -> target
-          cache-directories: target/runtime-probe
+          workspaces: . -> src-tauri/target
           cache-on-failure: true
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
       - name: Install Android SDK components
         run: |
           set +o pipefail

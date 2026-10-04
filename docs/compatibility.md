@@ -1,5 +1,13 @@
 # Observed compatibility
 
+## Milestone 02 foundation evidence — 2026-10-05
+
+The shared core compiles on native and WASM with no platform dependencies. Chromium and Firefox executed the new Rust validation/crypto vectors, IndexedDB replacement-Worker persistence, cancellation/failure cases, and native/WASM/Go age interoperability. Linux DEB/RPM packaging and actual WebKit execution passed the shared foundation proof and existing ACL/CSP assertions.
+
+The final 19-step local aggregate gate passed, including Android ARM64 release and x86_64 debug builds, independent JNI library builds, strict lint, a headless emulator invocation without Activity/WebView, and the UI/recreation/shared-engine check. ARM64 execution and physical devices remain unverified. Both Android runtime checks used the API 36 x86_64 emulator. These are public-fixture foundations, not signer or backup-product support. Final-candidate aggregate results are recorded in MEMORY/memory.md. The warmed local aggregate took 4m37.15s; this is not a hosted CI timing result. No hosted CI run exists for this unpushed milestone branch.
+
+The earlier Milestone 01 entries below are historical. Its final hosted run 37229772480 passed web/Linux in 3m41s and Android in 8m51s before PR #1 merged; earlier pending/failure entries do not supersede that result. The five-minute Android target remains unmet and separate from milestone 02.
+
 These are local foundation checks on 2026-10-04, not product-support or signer certification. No account, production credential, private message, or public relay was used.
 
 | Surface                         | Actual environment                                                         | Evidence so far                                                                                                                                                                                                                      |

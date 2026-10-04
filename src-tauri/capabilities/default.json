@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Only the local runtime health command; no plugin access",
+  "description": "Local runtime and isolated foundation proof commands; no plugin access",
   "windows": ["main"],
-  "permissions": ["allow-runtime-info"]
+  "permissions": ["allow-runtime-info", "allow-foundation-proof"]
 }

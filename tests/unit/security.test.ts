@@ -9,13 +9,14 @@ const capability: unknown = JSON.parse(
 );
 
 describe("foundation security configuration", () => {
-  it("limits the local main window to the health command", () => {
+  it("limits the local main window to runtime and isolated proof commands", () => {
     expect(capability).toEqual({
       $schema: "../gen/schemas/desktop-schema.json",
       identifier: "default",
-      description: "Only the local runtime health command; no plugin access",
+      description:
+        "Local runtime and isolated foundation proof commands; no plugin access",
       windows: ["main"],
-      permissions: ["allow-runtime-info"],
+      permissions: ["allow-runtime-info", "allow-foundation-proof"],
     });
   });
   it("requires a production CSP without arbitrary execution or remote connections", () => {

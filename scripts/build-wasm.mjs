@@ -1,24 +1,32 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 
-const result = spawnSync(
+mkdirSync("src/generated", { recursive: true });
+const shared = spawnSync(
   "cargo",
   [
     "build",
     "--locked",
-    "--manifest-path",
-    "tools/runtime-probe/Cargo.toml",
+    "-p",
+    "vault-wasm",
     "--target",
     "wasm32-unknown-unknown",
     "--release",
-    "--target-dir",
-    "target/runtime-probe",
   ],
   { stdio: "inherit" },
 );
-if (result.status !== 0) process.exit(result.status || 1);
-mkdirSync("src/generated", { recursive: true });
-copyFileSync(
-  "target/runtime-probe/wasm32-unknown-unknown/release/nostrvault_runtime_probe.wasm",
-  "src/generated/runtime_probe.wasm",
+if (shared.status !== 0) process.exit(shared.status || 1);
+const bindings = spawnSync(
+  "wasm-bindgen",
+  [
+    "src-tauri/target/wasm32-unknown-unknown/release/vault_wasm.wasm",
+    "--target",
+    "web",
+    "--out-dir",
+    "src/generated",
+    "--out-name",
+    "vault_wasm",
+  ],
+  { stdio: "inherit" },
 );
+if (bindings.status !== 0) process.exit(bindings.status || 1);

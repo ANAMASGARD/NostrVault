@@ -1,0 +1,3 @@
+[build]
+# Retain the established native build/cache location during workspace migration.
+target-dir = "src-tauri/target"

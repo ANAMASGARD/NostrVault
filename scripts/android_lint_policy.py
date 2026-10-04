@@ -31,7 +31,7 @@ def lint_config(policy):
 
 def verify_sources(policy, android=ANDROID, lock=None):
     if lock is None:
-        lock = (ROOT / "src-tauri/Cargo.lock").read_text()
+        lock = (ROOT / "Cargo.lock").read_text()
     if not re.search(r'name = "wry"\nversion = "' + re.escape(policy["wryVersion"]) + r'"\n', lock):
         raise ValueError("Wry version changed: re-review lint exceptions")
     for relative, expected in policy["generatedSha256"].items():

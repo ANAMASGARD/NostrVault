@@ -11,3 +11,4 @@ MEMORY/NostrVault-15-Commit-Plan.md
 package-lock.json
 test-results/
 playwright-report/
+src/generated/

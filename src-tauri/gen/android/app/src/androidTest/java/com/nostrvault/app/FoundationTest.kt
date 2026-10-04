@@ -77,6 +77,12 @@ class FoundationTest {
             awaitText(scenario, status, "Not checked")
             evaluate(scenario, "document.querySelector('button').click()")
             awaitText(scenario, status, "Native runtime ready: android · 0.1.0")
+            evaluate(scenario, "document.querySelectorAll('button')[1].click()")
+            awaitText(
+                scenario,
+                "document.querySelector('[data-testid=foundation-result]')?.textContent",
+                "Rust foundation ready · 152 fixture bytes · encrypted storage reopened",
+            )
         }
     }
 }

@@ -5,6 +5,7 @@ const mode = process.argv[2] ?? "all";
 if (!["all", "web", "linux", "android", "web-linux"].includes(mode))
   throw new Error(`Unknown gate: ${mode}`);
 const common = [
+  ["npm", "run", "build:wasm"],
   ["npm", "run", "format:check"],
   ["npm", "run", "typecheck"],
   ["npm", "run", "lint"],
@@ -20,33 +21,33 @@ const common = [
     "test_*.py",
   ],
 ];
+common.push(["cargo", "fmt", "--all", "--", "--check"]);
 const gates = {
   web: [
-    [
-      "cargo",
-      "fmt",
-      "--manifest-path",
-      "tools/runtime-probe/Cargo.toml",
-      "--",
-      "--check",
-    ],
+    ["node", "scripts/verify-core-boundary.mjs"],
     [
       "cargo",
       "clippy",
       "--locked",
-      "--manifest-path",
-      "tools/runtime-probe/Cargo.toml",
+      "-p",
+      "vault-core",
       "--all-targets",
       "--",
       "-D",
       "warnings",
     ],
+    ["cargo", "test", "--locked", "-p", "vault-core"],
     [
       "cargo",
-      "test",
+      "clippy",
       "--locked",
-      "--manifest-path",
-      "tools/runtime-probe/Cargo.toml",
+      "-p",
+      "vault-wasm",
+      "--target",
+      "wasm32-unknown-unknown",
+      "--",
+      "-D",
+      "warnings",
     ],
     ["npm", "run", "build:web"],
     ["npm", "run", "test:web"],
@@ -54,24 +55,18 @@ const gates = {
   linux: [
     [
       "cargo",
-      "fmt",
-      "--manifest-path",
-      "src-tauri/Cargo.toml",
-      "--",
-      "--check",
-    ],
-    [
-      "cargo",
       "clippy",
       "--locked",
-      "--manifest-path",
-      "src-tauri/Cargo.toml",
+      "-p",
+      "vault-native",
+      "-p",
+      "nostrvault",
       "--all-targets",
       "--",
       "-D",
       "warnings",
     ],
-    ["cargo", "test", "--locked", "--manifest-path", "src-tauri/Cargo.toml"],
+    ["cargo", "test", "--locked", "-p", "vault-native", "-p", "nostrvault"],
     [
       "npm",
       "run",
