@@ -1,3 +1,13 @@
+## 2026-10-05 — commit 13 linux
+
+Window-close policy in `crates/vault-core/src/engine.rs`. Default is stop. Keep-running can pause readable decrypt or continue encrypted capture only. Reopen returns the same policy. UI copy says autostart is not enabled. No second database and no package rebuild.
+
+**Verified:** short gate; engine Rust test; unit tests 46; native tests.
+
+**Not verified:** real window-close process, sleep/resume, Fedora package, `verify:commit`.
+
+---
+
 ## 2026-10-05 — commit 12 web
 
 App-shell cache allowlist in `src/pwa.ts`, web manifest, and `docs/web-pwa.md`. Vault data stays in IndexedDB. Closed-browser sync is not claimed. No service worker is registered in this slice, so Playwright was not re-run.

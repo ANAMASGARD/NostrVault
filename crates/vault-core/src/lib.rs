@@ -3,6 +3,7 @@ pub mod archive;
 pub mod backup;
 pub mod chats;
 pub mod collection;
+pub mod engine;
 pub mod identity;
 pub mod media;
 pub mod recovery;

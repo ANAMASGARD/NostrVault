@@ -17,7 +17,10 @@ export function SyncStatus({ job }: { job: SyncView | null }) {
       ) : (
         <p>
           No live catch-up job is stored yet. Initial collection remains
-          one-shot.
+          one-shot. Closing the window stops the engine unless keep-running is
+          enabled. Readable history stays paused while locked. Encrypted capture
+          while locked is opt-in and does not update the readable list.
+          Autostart is not enabled.
         </p>
       )}
     </section>
