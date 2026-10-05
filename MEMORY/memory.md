@@ -1,3 +1,115 @@
+## 2026-10-05 — commit 15 release evidence
+
+README and `docs/compatibility.md` list what commits 06–15 implement and what they do not prove. No signing keys, no public deploy, no demo video. The Linux recovery GUI script remains a fail from the earlier nak run. Full signer matrix, ARM64 runtime, physical devices, closed-browser sync, and WorkManager execution stay unverified.
+
+**Verified:** short gate plus `git diff --check`.
+
+**Not verified:** `npm run verify:commit`, hosted CI, release artifacts for this branch.
+
+---
+
+## 2026-10-05 — commit 14 android
+
+Catch-up schedule contract in `crates/vault-core/src/schedule.rs` and `docs/android-catchup.md`. Unique id, 15 minute minimum, no background decrypt. WorkManager and Storage Access Framework are not registered yet. Kotlin formatting was skipped because no Kotlin changed. No emulator run for this commit.
+
+**Verified:** short gate; schedule Rust test; unit tests 46; native tests.
+
+**Not verified:** device, doze, force-stop, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 13 linux
+
+Window-close policy in `crates/vault-core/src/engine.rs`. Default is stop. Keep-running can pause readable decrypt or continue encrypted capture only. Reopen returns the same policy. UI copy says autostart is not enabled. No second database and no package rebuild.
+
+**Verified:** short gate; engine Rust test; unit tests 46; native tests.
+
+**Not verified:** real window-close process, sleep/resume, Fedora package, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 12 web
+
+App-shell cache allowlist in `src/pwa.ts`, web manifest, and `docs/web-pwa.md`. Vault data stays in IndexedDB. Closed-browser sync is not claimed. No service worker is registered in this slice, so Playwright was not re-run.
+
+**Verified:** short gate; unit tests 46.
+
+**Not verified:** full `npm run test:web`, storage eviction, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 11 media
+
+Opt-in media admission in `crates/vault-core/src/media.rs`. Hash mismatch is rejected, oversized payloads hit the limit, empty payloads stay missing, and a matching payload on an allowed host is stored. UI copy in `src/MediaNote.tsx` says a URL is not a backup. No downloader.
+
+**Verified:** short gate; unit tests 45; media Rust test; native tests.
+
+**Not verified:** real HTTP fetch, offline image preview, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 10 recovery
+
+Restore classification in `crates/vault-core/src/recovery.rs`: acknowledged, verified read-back, rejected, and unknown stay distinct. Private restore requires an inbox grant. Backup status copy uses the eligible-count sentence and says an acknowledgement is not verification.
+
+**Verified:** short gate; unit tests 44; recovery Rust tests; native tests.
+
+**Not verified:** live lost-ACK relay drill, `test:recovery:linux`, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 09 viewer
+
+Offline search in `src/viewer.ts` and `src/Viewer.tsx`. Matches visible message text only, strips HTML tags before display, and unmounts with the unlocked vault so the query is not kept after lock. No plaintext search index and no relay call on open.
+
+**Verified:** short gate; unit tests 43.
+
+**Not verified:** large-history virtualization, blocked-network browser run, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 08 archive
+
+Portable snapshot envelope in `crates/vault-core/src/archive.rs` using the existing authenticated record cipher (not a new cipher and not claimed as zip.age). Manifest version 1, path checks, wrong password, truncated ciphertext, and a failed import that does not replace the previous bytes. UI copy is in `src/ArchivePanel.tsx`. No file-picker IPC yet.
+
+**Verified:** short gate; unit tests 42; archive Rust tests.
+
+**Not verified:** cross-platform file transfer, decompression bombs, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 07 sync
+
+Durable catch-up jobs in `crates/vault-core/src/sync.rs`: one id per account/relay/filter, checkpoint advances only after storage, bounded backoff, pause after repeated failures, needs-auth state. `src/SyncStatus.tsx` shows those states. No second database and no live socket loop beyond the existing one-shot collector.
+
+**Verified:** same short gate as commit 06; unit tests 41.
+
+**Not verified:** crash injection against SQLite, live subscription gap, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 06 chats
+
+Implemented conversation projection in `crates/vault-core/src/chats.rs` and a read-only list in `src/Chats.tsx`. Duplicate wraps collapse to one rumor. Sender mismatch is rejected. Pending, failed, and verified stay distinct; deleted or expired bodies are not shown. The unlocked vault starts with an empty list until a signer-verified projection is supplied. No live decrypt IPC yet.
+
+**Verified:** `npm run typecheck`, `npm run lint`, `npm run test:unit` (40), `cargo fmt --all -- --check`, `cargo test --locked -p vault-core -p vault-native`.
+
+**Not verified:** real NIP-17 unwrap against a signer, `verify:commit`.
+
+---
+
+## Current handoff — 2026-10-05 — commits 06–15 in progress
+
+| Track              | State                                                                                                                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`main`**         | Through **M05** ([PR #6](https://github.com/ANAMASGARD/NostrVault/pull/6) → `b185500`). Kind-1 restore preview, v2 snapshot, lookup/capture grants, same-socket NIP-42.                                         |
+| **M04 acceptance** | Still incomplete: full signer matrix, Firefox/Android private decrypt.                                                                                                                                          |
+| **Recovery GUI**   | `npm run test:recovery:linux` with pinned nak timed out waiting for “Stored events: 11”. Not a pass.                                                                                                            |
+| **PR #5**          | Closed as superseded by #6.                                                                                                                                                                                     |
+| **Next**           | Milestones 06–15 on `milestone-06-15` with the short gate only (`typecheck`, `lint`, `test:unit`, `cargo fmt --check`, `cargo test -p vault-core -p vault-native`). Full `verify:commit` is not run per commit. |
+
+---
+
 ## Current handoff — 2026-10-05 — `main` @ `446a9d8`
 
 | Track                | State                                                                                                                                                                                                                                                                                        |

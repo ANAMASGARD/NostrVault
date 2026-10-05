@@ -1,5 +1,22 @@
 # Observed compatibility
 
+## Milestones 06–15 — 2026-10-05
+
+Local short gates passed on `milestone-06-15` (typecheck, lint, unit tests, rustfmt, `cargo test` for `vault-core` and `vault-native`). That is not `verify:commit`, not a hosted CI result, and not a cross-platform recovery drill.
+
+| Slice        | Observed                                                                | Not observed                                  |
+| ------------ | ----------------------------------------------------------------------- | --------------------------------------------- |
+| Chats        | Projection tests for duplicate wraps, mismatch, pending/failed/verified | Live NIP-17 unwrap with a signer              |
+| Sync         | Checkpoint moves only after store                                       | Live subscription and crash injection         |
+| Archive      | Authenticated envelope round trip, wrong password, bad paths            | File transfer between web, Linux, and Android |
+| Viewer       | In-memory search, tag stripping                                         | Network-blocked browser session               |
+| Recovery     | Ack vs read-back classification                                         | `test:recovery:linux` (timed out earlier)     |
+| Media        | Hash, size, missing vs stored                                           | HTTP download                                 |
+| Web          | Shell-cache allowlist                                                   | Full Playwright suite for this branch         |
+| Linux engine | Window-close policy unit test                                           | Packaged keep-running process                 |
+| Android      | Schedule contract, no background decrypt                                | WorkManager on a device                       |
+| Release      | This matrix                                                             | Signed store builds, video                    |
+
 ## Milestone 02 foundation evidence — 2026-10-05
 
 The shared core compiles on native and WASM with no platform dependencies. Chromium and Firefox executed the new Rust validation/crypto vectors, IndexedDB replacement-Worker persistence, cancellation/failure cases, and native/WASM/Go age interoperability. Linux DEB/RPM packaging and actual WebKit execution passed the shared foundation proof and existing ACL/CSP assertions.

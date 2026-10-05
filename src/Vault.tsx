@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { ArchivePanel } from "./ArchivePanel";
 import { Backup } from "./Backup";
+import { Chats } from "./Chats";
 import { Identity } from "./Identity";
+import { MediaNote } from "./MediaNote";
+import { SyncStatus } from "./SyncStatus";
 import { failureCode, messages, type VaultStatus } from "./vault-contract";
 import { VaultRuntime } from "./vault-runtime";
+import { Viewer } from "./Viewer";
 
 export function Vault() {
   const runtime = useRef<VaultRuntime | null>(null);
@@ -235,6 +240,11 @@ export function Vault() {
           <p>Your local vault is ready.</p>
           <p role="status">Setup saved securely on this device.</p>
           <Identity host={host} />
+          <Chats messages={[]} />
+          <SyncStatus job={null} />
+          <ArchivePanel />
+          <Viewer messages={[]} />
+          <MediaNote state={null} />
           {__NATIVE_BUILD__ && <Backup host={host} />}
           <button
             onClick={() => {
