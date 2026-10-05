@@ -38,6 +38,7 @@ try {
     "VaultReopenTest",
   ]) {
     call(["shell", "am", "force-stop", "com.nostrvault.app"]);
+    call(["logcat", "-b", "crash", "-c"]);
     const output = call([
       "shell",
       "am",
@@ -50,11 +51,18 @@ try {
       "com.nostrvault.app.test/androidx.test.runner.AndroidJUnitRunner",
     ]);
     writeFileSync(`test-results/m03-android-${name}.txt`, output);
+    const crash = call(["logcat", "-b", "crash", "-d"]);
+    writeFileSync(`test-results/m03-android-${name}-crash.txt`, crash);
     if (
       !/OK \(1 test\)/.test(output) ||
-      /FAILURES|INSTRUMENTATION_FAILED/.test(output)
-    )
+      /FAILURES|INSTRUMENTATION_FAILED|Process crashed/.test(output) ||
+      /FORTIFY:|Fatal signal|FATAL EXCEPTION/.test(crash)
+    ) {
+      // These runs use disposable fixture vaults. Preserve crash diagnostics
+      // before uninstalling, but never turn a completed test body into a pass
+      // when the instrumentation runner subsequently crashes.
       throw new Error(`Android ${name} failed: ${output}`);
+    }
     console.log(`PASS Android ${name}`);
     if (name === "HeadlessVaultTest") {
       const benchmark = JSON.parse(
