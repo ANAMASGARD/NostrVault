@@ -40,7 +40,7 @@ function App() {
 
   return (
     <main>
-      <p className="eyebrow">Development build · Milestone 04</p>
+      <p className="eyebrow">Development build · Linux recovery preview</p>
       <h1>NostrVault</h1>
       <p>Your Nostr history should survive your relay.</p>
       {!new URLSearchParams(location.search).has("diagnostics") && <Vault />}
@@ -49,8 +49,9 @@ function App() {
         <section aria-labelledby="foundation-title">
           <h2 id="foundation-title">Platform foundation</h2>
           <p>
-            Backup and offline conversations are not available in this build. No
-            account or relay is contacted.
+            These checks use isolated fixtures. No account or relay is
+            contacted. Public-note recovery is available in the Linux preview;
+            private conversations remain unsupported.
           </p>
           <button disabled={checking} onClick={() => void check()}>
             Check runtime
