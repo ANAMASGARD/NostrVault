@@ -33,3 +33,18 @@ Regenerated Android Wry output matched its approved source hashes. Independent `
 The initial hosted runs `37222489213` and `37222498966` both failed in Android SDK setup with `sdkmanager: command not found`, before application compilation. `.github/workflows/verify.yml` now calls `sdkmanager`, `avdmanager`, and `adb` through `$ANDROID_HOME` paths. The initial follow-up local full gate also stopped at instrumentation because its emulator had exited; no instrumentation pass was inferred from the APK build. After starting the documented Mesa/Xvfb emulator and rerunning the entire gate, all 17 steps passed, including one emulator instrumentation test. Hosted results for the workflow fix are pending a new push-triggered run.
 
 The Linux runtime smoke test now retries temporary profile cleanup when Tauri/WebKit briefly retains files (`ENOTEMPTY`). Its focused gate and the final complete gate both passed. This is a test-harness cleanup fix; application behavior is unchanged.
+
+## M04 candidate signer evidence (2026-10-05)
+
+| Signer                        | Actual evidence                                                                                                                                                                              | Status                                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| nos2x2.5.2 / Chromium         | Real connection, confirmation and synthetic NIP44 operation succeeded; plaintext appeared in page console                                                                                    | Incompatible with private chats; private decryption disabled                |
+| nos2x-fox1.21.0.1             | Signed artifact loaded in disposable Firefox; complete approval flow not verified                                                                                                            | Public-flow acceptance outstanding; private decryption disabled             |
+| nak0.21.0 / Linux             | Production native adapter connected, confirmed account, decrypted NIP04/NIP44, signed exact kind22242, sent AUTH to a fresh local relay challenge and received acknowledgement, disconnected | Acceptance subset passed; complete failure/reconnect matrix outstanding     |
+| Amber6.6.6 / Android emulator | Installed signed APK; one run connected and confirmed account; full decrypt/approval test failed                                                                                             | Complete real-signer acceptance blocked; deterministic result parser passed |
+| Alby3.15.0 / Chromium         | Official ZIP hash/source inspected; fixture onboarding attempt did not complete                                                                                                              | Not approved as a replacement                                               |
+
+Pins and artifact-signature limitations are in `tests/signers/artifacts.json` and
+`docs/identity-research.md`. The expired Amber GPG key limitation remains; APK
+signature and certificate-continuity checks do not establish reproducible builds.
+These results do not establish physical-device compatibility or full M04 completion.

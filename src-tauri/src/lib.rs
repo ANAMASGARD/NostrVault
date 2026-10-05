@@ -74,6 +74,60 @@ async fn vault_command(
         .map_err(|_| vault_core::vault::Error::Storage)?
 }
 
+#[tauri::command]
+async fn identity_command(
+    runtime: tauri::State<'_, OnceLock<Arc<vault_native::vault::Runtime>>>,
+    request: String,
+) -> Result<vault_core::identity::Output, vault_core::vault::Error> {
+    let request = zeroize::Zeroizing::new(request);
+    if request.len() > vault_core::identity::WIRE_LIMIT {
+        return Err(vault_core::vault::Error::Limit);
+    }
+    let request =
+        serde_json::from_str(&request).map_err(|_| vault_core::vault::Error::Malformed)?;
+    let runtime = Arc::clone(runtime.get().ok_or(vault_core::vault::Error::Locked)?);
+    tauri::async_runtime::spawn_blocking(move || runtime.identity_execute(request))
+        .await
+        .map_err(|_| vault_core::vault::Error::Storage)?
+}
+#[tauri::command]
+async fn identity_transport(
+    app: tauri::AppHandle,
+    runtime: tauri::State<'_, OnceLock<Arc<vault_native::vault::Runtime>>>,
+    binding: vault_core::identity::Binding,
+    id: String,
+) -> Result<serde_json::Value, vault_core::vault::Error> {
+    let runtime = Arc::clone(runtime.get().ok_or(vault_core::vault::Error::Locked)?);
+    let effect = runtime.identity_effect(&binding, &id)?;
+    #[cfg(target_os = "android")]
+    if effect.adapter == vault_core::identity::Adapter::Android {
+        let plugin = app.state::<tauri::plugin::PluginHandle<tauri::Wry>>();
+        let response = plugin
+            .run_mobile_plugin_async("request", effect)
+            .await
+            .map_err(|_| vault_core::vault::Error::Cancelled)?;
+        runtime.identity_effect(&binding, &id)?;
+        return Ok(response);
+    }
+    let _ = (app, effect);
+    vault_native::identity_transport::receive(runtime, binding, id).await
+}
+#[tauri::command]
+async fn identity_packages(app: tauri::AppHandle) -> Result<Vec<String>, vault_core::vault::Error> {
+    #[cfg(target_os = "android")]
+    {
+        return app
+            .state::<tauri::plugin::PluginHandle<tauri::Wry>>()
+            .run_mobile_plugin_async("packages", serde_json::json!({}))
+            .await
+            .map_err(|_| vault_core::vault::Error::Unsupported);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Ok(vec![])
+    }
+}
 #[derive(Serialize)]
 struct RuntimeInfo {
     platform: &'static str,
@@ -90,12 +144,26 @@ fn runtime_info() -> RuntimeInfo {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    if let Err(error) = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(
+        tauri::plugin::Builder::<tauri::Wry>::new("signer")
+            .setup(|app, api| {
+                let plugin = api.register_android_plugin("com.nostrvault.app", "SignerPlugin")?;
+                app.manage(plugin);
+                Ok(())
+            })
+            .build(),
+    );
+    if let Err(error) = builder
         .manage(OnceLock::<Arc<vault_native::vault::Runtime>>::new())
         .invoke_handler(tauri::generate_handler![
             runtime_info,
             foundation_proof,
-            vault_command
+            vault_command,
+            identity_command,
+            identity_transport,
+            identity_packages
         ])
         .run(tauri::generate_context!())
     {

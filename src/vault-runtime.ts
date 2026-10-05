@@ -1,4 +1,12 @@
 import {
+  parseIdentity,
+  type IdentityAction,
+  type IdentityOutput,
+  type Binding,
+  type Effect,
+} from "./identity-contract";
+import { browserSigner } from "./signer-broker";
+import {
   failureCode,
   object,
   parseStatus,
@@ -11,8 +19,18 @@ export class VaultRuntime {
   private worker: Worker | null = null;
   private status: VaultStatus | null = null;
   private generation = 0;
-  private pending: ((error: Error) => void) | null = null;
+  private signerAbort = new AbortController();
   private active = false;
+  private identityStatus: IdentityOutput | null = null;
+  private signerEpoch = 0;
+  private requests = new Map<
+    string,
+    {
+      resolve: (v: unknown) => void;
+      reject: (e: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
   private async send(request: VaultRequest): Promise<VaultStatus> {
     if (__NATIVE_BUILD__) {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -22,43 +40,146 @@ export class VaultRuntime {
         }),
       );
     }
-    this.worker ??= new Worker(new URL("./vault.worker.ts", import.meta.url), {
-      type: "module",
-    });
-    const worker = this.worker;
+    return parseStatus(await this.workerSend(request));
+  }
+  private workerSend(request: {
+    requestId: string;
+    [key: string]: unknown;
+  }): Promise<unknown> {
+    if (__NATIVE_BUILD__) throw new Error("unsupported");
+    if (!this.worker) {
+      this.worker = new Worker(new URL("./vault.worker.ts", import.meta.url), {
+        type: "module",
+      });
+      this.worker.onmessage = (event: MessageEvent<unknown>) => {
+        const v = event.data;
+        if (!object(v) || typeof v.requestId !== "string") return;
+        const p = this.requests.get(v.requestId);
+        if (!p) return;
+        clearTimeout(p.timer);
+        this.requests.delete(v.requestId);
+        if (typeof v.error === "string") p.reject(new Error(v.error));
+        else p.resolve(v.result ?? v.status);
+      };
+      this.worker.onerror = () => this.cancelRequests();
+    }
     return new Promise((resolve, reject) => {
-      const finish = (error?: Error, status?: VaultStatus) => {
-        clearTimeout(timer);
-        this.pending = null;
-        worker.onmessage = null;
-        worker.onerror = null;
-        if (error) reject(error);
-        else if (status) resolve(status);
-      };
       const timer = setTimeout(() => {
-        worker.terminate();
-        if (this.worker === worker) this.worker = null;
-        finish(new Error("cancelled"));
-      }, 60000);
-      this.pending = (error) => finish(error);
-      worker.onerror = () => finish(new Error("storage"));
-      worker.onmessage = (event: MessageEvent<unknown>) => {
-        try {
-          const value = event.data;
-          if (!object(value) || value.requestId !== request.requestId)
-            throw new Error("malformed");
-          if (typeof value.error === "string") finish(new Error(value.error));
-          else finish(undefined, parseStatus(value.status));
-        } catch {
-          finish(new Error("malformed"));
-        }
-      };
-      worker.postMessage(request);
+        this.requests.delete(request.requestId);
+        reject(new Error("timeout"));
+      }, 310000);
+      this.requests.set(request.requestId, { resolve, reject, timer });
+      this.worker?.postMessage(request);
     });
   }
+  private cancelRequests() {
+    for (const p of this.requests.values()) {
+      clearTimeout(p.timer);
+      p.reject(new Error("cancelled"));
+    }
+    this.requests.clear();
+  }
+  async identity(action: IdentityAction): Promise<IdentityOutput> {
+    if (!this.status || this.status.state !== "unlocked")
+      throw new Error("locked");
+    if (
+      action.kind === "cancel" ||
+      action.kind === "disconnect" ||
+      action.kind === "grants"
+    )
+      this.cancelSigner();
+    const binding: Binding = this.identityStatus?.binding ?? {
+      vaultId: this.status.vaultId ?? "",
+      token: this.status.token,
+      generation: this.status.generation,
+      account: null,
+      signerGeneration: 0,
+      consentRevision: 0,
+    };
+    const request = { requestId: crypto.randomUUID(), binding, action };
+    const generation = this.generation;
+    const value = __NATIVE_BUILD__
+      ? await (
+          await import("@tauri-apps/api/core")
+        ).invoke<unknown>("identity_command", {
+          request: JSON.stringify(request),
+        })
+      : await this.workerSend({
+          requestId: request.requestId,
+          kind: "identity",
+          request,
+        });
+    if (generation !== this.generation) throw new Error("cancelled");
+    const result = parseIdentity(value);
+    if (result.requestId !== request.requestId) throw new Error("malformed");
+    this.identityStatus = result;
+    return result;
+  }
+  async signer(effect: Effect): Promise<IdentityOutput> {
+    const generation = this.generation,
+      epoch = this.signerEpoch;
+    let value: unknown;
+    try {
+      const work =
+        effect.adapter === "browser"
+          ? browserSigner(effect, this.signerAbort.signal)
+          : __NATIVE_BUILD__
+            ? (await import("@tauri-apps/api/core")).invoke<unknown>(
+                "identity_transport",
+                { binding: effect.binding, id: effect.id },
+              )
+            : this.workerSend({
+                requestId: crypto.randomUUID(),
+                kind: "identity_transport",
+                effect,
+              });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        value = await Promise.race([
+          work,
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("timeout")),
+              Math.max(1, effect.deadline * 1000 - Date.now()),
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+      if (object(value) && typeof value.failure === "string")
+        throw new Error(value.failure);
+    } catch (error: unknown) {
+      if (generation !== this.generation || epoch !== this.signerEpoch)
+        // Signer exceptions may contain plaintext; do not attach their cause.
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error("cancelled");
+      const code =
+        error instanceof Error &&
+        [
+          "missing_signer",
+          "unsupported",
+          "denied",
+          "unavailable",
+          "cancelled",
+          "timeout",
+          "wrong_account",
+          "malformed",
+          "revoked",
+        ].includes(error.message)
+          ? error.message
+          : "unavailable";
+      return this.identity({ kind: "failure", id: effect.id, code });
+    }
+    if (generation !== this.generation || epoch !== this.signerEpoch)
+      throw new Error("cancelled");
+    return this.identity({ kind: "reply", id: effect.id, value });
+  }
+
   async run(operation: VaultOperation): Promise<VaultStatus> {
     validatePasswords(operation);
     if (this.active) throw new Error("busy");
+    if (operation.kind === "change_password") this.cancelSigner();
     this.active = true;
     const generation = this.generation;
     try {
@@ -72,6 +193,7 @@ export class VaultRuntime {
       });
       if (generation !== this.generation) throw new Error("cancelled");
       this.status = status;
+      if (status.state !== "unlocked") this.identityStatus = null;
       return status;
     } catch (error: unknown) {
       // Raw native errors must not retain sensitive input in an error cause.
@@ -81,9 +203,16 @@ export class VaultRuntime {
       if (generation === this.generation) this.active = false;
     }
   }
+  private cancelSigner() {
+    this.signerEpoch++;
+    this.signerAbort.abort();
+    this.signerAbort = new AbortController();
+  }
   async lock(): Promise<VaultStatus> {
     this.generation++;
-    this.pending?.(new Error("cancelled"));
+    this.cancelSigner();
+    this.identityStatus = null;
+    this.cancelRequests();
     this.worker?.terminate();
     this.worker = null;
     this.active = false;
@@ -97,6 +226,7 @@ export class VaultRuntime {
         operation: { kind: "lock" },
       });
       this.status = status;
+      if (status.state !== "unlocked") this.identityStatus = null;
       return status;
     }
     // Worker termination releases Web Locks asynchronously. Wait for that
@@ -112,8 +242,11 @@ export class VaultRuntime {
     return this.run({ kind: "status" });
   }
   dispose(): void {
+    this.active = false;
     this.generation++;
-    this.pending?.(new Error("cancelled"));
+    this.cancelSigner();
+    this.identityStatus = null;
+    this.cancelRequests();
     this.worker?.terminate();
     this.worker = null;
     this.status = null;

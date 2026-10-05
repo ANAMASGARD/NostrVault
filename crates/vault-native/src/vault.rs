@@ -424,6 +424,17 @@ impl Runtime {
                     .read(&key)?
                     .ok_or(Error::Storage)?;
                 inner.session.finish_unlock(&record)?;
+                let index = inner.session.identity_index()?;
+                let record = inner.store.as_ref().ok_or(Error::Storage)?.read(&index)?;
+                if let Some(key) = inner.session.identity_pointer(record.as_ref())? {
+                    let record = inner
+                        .store
+                        .as_ref()
+                        .ok_or(Error::Storage)?
+                        .read(&key)?
+                        .ok_or(Error::Storage)?;
+                    inner.session.identity_restore(&record)?;
+                }
             }
             if epoch != self.epoch.load(Ordering::SeqCst) {
                 return Err(Error::Cancelled);
@@ -437,6 +448,92 @@ impl Runtime {
             inner.store = None;
         }
         outcome
+    }
+}
+
+pub fn identity_now() -> Result<u64> {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|t| t.as_secs())
+        .map_err(|_| Error::Malformed)
+}
+impl Runtime {
+    pub fn identity_execute(
+        &self,
+        request: vault_core::identity::Request,
+    ) -> Result<vault_core::identity::Output> {
+        let epoch = self.epoch.load(Ordering::SeqCst);
+        let mut inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        let revision = inner
+            .store
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .snapshot()?
+            .revision;
+        let prepared =
+            inner
+                .session
+                .identity_prepare(request, revision, identity_now()?, &mut OsEntropy)?;
+        if epoch != self.epoch.load(Ordering::SeqCst) {
+            return Err(Error::Cancelled);
+        }
+        if let Some(mutation) = prepared.mutation {
+            if let Err(error) = inner.store.as_mut().ok_or(Error::Locked)?.commit(&mutation) {
+                inner.session.lock();
+                inner.store = None;
+                return Err(error);
+            }
+            inner.session.identity_committed(revision + 1);
+        }
+        if epoch != self.epoch.load(Ordering::SeqCst) {
+            return Err(Error::Cancelled);
+        }
+        Ok(prepared.output)
+    }
+    /// Internal connection-owner API. No Tauri command exposes arbitrary event signing.
+    pub fn identity_auth(
+        &self,
+        relay: &str,
+        challenge: &str,
+        connection: &str,
+    ) -> Result<vault_core::identity::Effect> {
+        self.inner
+            .lock()
+            .map_err(|_| Error::Storage)?
+            .session
+            .identity_auth(
+                relay,
+                challenge,
+                connection,
+                identity_now()?,
+                &mut OsEntropy,
+            )
+    }
+    pub fn identity_take_auth(&self) -> Result<Option<vault_core::identity::VerifiedAuth>> {
+        self.inner
+            .lock()
+            .map_err(|_| Error::Storage)?
+            .session
+            .identity_take_auth()
+    }
+    pub fn identity_cancel_auth(&self) -> Result<()> {
+        self.inner
+            .lock()
+            .map_err(|_| Error::Storage)?
+            .session
+            .identity_cancel_auth();
+        Ok(())
+    }
+    pub fn identity_effect(
+        &self,
+        binding: &vault_core::identity::Binding,
+        id: &str,
+    ) -> Result<vault_core::identity::Effect> {
+        self.inner
+            .lock()
+            .map_err(|_| Error::Storage)?
+            .session
+            .identity_effect(binding, id, identity_now()?)
     }
 }
 
@@ -576,6 +673,112 @@ mod runtime_tests {
             vault_id: status.vault_id.clone(),
             operation,
         }
+    }
+    #[test]
+    fn identity_persists_encrypted_and_disconnect_survives_reopen() {
+        use vault_core::identity::{Action, Adapter, Binding, Request as IdentityRequest};
+        let dir = std::env::temp_dir().join(format!("nv-identity-{}", std::process::id()));
+        let host = Runtime::new(dir.clone()).unwrap();
+        let initial = host.inner.lock().unwrap().session.status();
+        let created = host
+            .execute(&request(
+                &initial,
+                Operation::Create {
+                    password: "test identity password".into(),
+                    confirmation: "test identity password".into(),
+                },
+            ))
+            .unwrap();
+        let binding = Binding {
+            vault_id: created.vault_id.clone().unwrap(),
+            token: created.token.clone(),
+            generation: created.generation,
+            account: None,
+            signer_generation: 0,
+            consent_revision: 0,
+        };
+        let output = host
+            .identity_execute(IdentityRequest {
+                request_id: "connect".into(),
+                binding,
+                action: Action::Connect {
+                    adapter: Adapter::Browser,
+                    remember: true,
+                    pairing: None,
+                    relays: vec![],
+                    package: None,
+                },
+            })
+            .unwrap();
+        let account = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let output=host.identity_execute(IdentityRequest{request_id:"reply".into(),binding:output.binding,action:Action::Reply{id:output.effect.unwrap().id,value:serde_json::json!({"account":account,"package":null,"capabilities":{"publicKey":true,"nip04":false,"nip44":false,"relayAuth":false}})}}).unwrap();
+        host.identity_execute(IdentityRequest {
+            request_id: "confirm".into(),
+            binding: output.binding,
+            action: Action::Confirm {
+                account: account.into(),
+            },
+        })
+        .unwrap();
+        drop(host);
+        let bytes = std::fs::read(dir.join("vault.sqlite")).unwrap();
+        assert!(!bytes
+            .windows(account.len())
+            .any(|w| w == account.as_bytes()));
+        let host = Runtime::new(dir.clone()).unwrap();
+        let initial = host.inner.lock().unwrap().session.status();
+        let initial = host.execute(&request(&initial, Operation::Status)).unwrap();
+        host.execute(&request(
+            &initial,
+            Operation::Unlock {
+                password: "test identity password".into(),
+            },
+        ))
+        .unwrap();
+        let binding = host
+            .inner
+            .lock()
+            .unwrap()
+            .session
+            .identity_binding()
+            .unwrap();
+        let output = host
+            .identity_execute(IdentityRequest {
+                request_id: "status".into(),
+                binding,
+                action: Action::Status,
+            })
+            .unwrap();
+        assert_eq!(output.view.account.as_deref(), Some(account));
+        assert_eq!(output.view.state, "disconnected");
+        assert!(output.effect.is_none());
+        host.identity_execute(IdentityRequest {
+            request_id: "disconnect".into(),
+            binding: output.binding,
+            action: Action::Disconnect,
+        })
+        .unwrap();
+        drop(host);
+        let host = Runtime::new(dir.clone()).unwrap();
+        let initial = host.inner.lock().unwrap().session.status();
+        let initial = host.execute(&request(&initial, Operation::Status)).unwrap();
+        host.execute(&request(
+            &initial,
+            Operation::Unlock {
+                password: "test identity password".into(),
+            },
+        ))
+        .unwrap();
+        let binding = host
+            .inner
+            .lock()
+            .unwrap()
+            .session
+            .identity_binding()
+            .unwrap();
+        assert!(binding.account.is_none());
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn actual_runtime_reopen_password_change_and_stale_generation() {

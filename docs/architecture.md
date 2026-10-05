@@ -1,6 +1,6 @@
 # Architecture decision: Rust-owned engine across three hosts
 
-Status: milestone 03 adds production encrypted storage and vault sessions to the milestone 02 foundations. Signer, relay, conversation, archive-product, and recovery services remain planned. Platform verification is recorded separately in MEMORY/memory.md.
+Status: M03 production vault behavior is preserved. The M04 candidate adds shared Rust identity/consent state and signer adapters; complete signer acceptance remains outstanding. Relay collection, conversations, archive-product and recovery services remain planned. Platform verification is recorded separately in MEMORY/memory.md.
 
 ## Planned product direction
 
@@ -59,3 +59,39 @@ Generic bounded account-scoped records, encrypted migration staging, and native
 sealed-ingress APIs are internal building blocks. No public fixture-message UI,
 background collection, signer, relay, archive product, or convenience unlock is
 provided. See [storage format and limits](vault-storage.md).
+
+## M04 candidate identity boundary
+
+`vault-core::identity` owns account confirmation, consent revision, one pending
+approval, deadlines, NIP46 encryption/response validation, and narrow NIP42 event
+construction/verification. Pending work binds vault identity, runtime token,
+vault generation, account, signer generation and consent revision. Host sockets
+carry only engine-produced requests. Linux uses tokio-tungstenite 0.30.0; the
+browser Worker uses WebSocket. Neither native sockets nor Tokio enter vault-core.
+
+The page broker invokes NIP07 methods; plaintext replies remain transient and
+return directly to Rust validation. Browser-extension private decryption is
+currently denied by Rust even if methods exist: nos2x 2.5.2 failed the real
+plaintext-logging check, and replacement/Firefox privacy acceptance is not
+complete. Public identity connection remains enabled. Native NIP46 and NIP55
+synthetic decryption checks require an explicit readable-history grant.
+
+A narrow Activity Result plugin addresses the selected Android signer package.
+It sends current_user after account confirmation and distinguishes explicit
+rejection from non-OK cancellation/failure. Rust checks session freshness again
+when the Activity returns. Content Resolver and callback URLs are not used.
+
+Remembered data uses encrypted M03 records: a vault-system pointer and an
+account-isolated identity record. Browser remembering stores account/grants only;
+remote remembering also stores the transport key; Android stores account/package.
+Unlock restores disconnected state with no prompt. Disconnect reports success
+after the encrypted replacement transaction commits. Previous ciphertext remains
+subject to the documented physical-erasure/rollback limits; external permissions
+remain signer-owned. No remote logout acknowledgement is claimed.
+
+Relay-auth authorization is an internal connection-owner API, with no arbitrary
+UI sign_event command. The connection owner must invalidate pending auth when a
+challenge changes or the connection closes. Verified results expose only an AUTH
+encoder. The real local nak acceptance subset validates a fresh relay challenge,
+unchanged kind-22242 signature, AUTH transmission and relay acknowledgement.
+No collection subscription or history publication is introduced.

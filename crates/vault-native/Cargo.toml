@@ -17,5 +17,14 @@ zeroize = "1"
 sha2 = "=0.10.9"
 hex = "=0.4.3"
 
+tokio = { version = "1", features = ["net", "time"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "=1.0.9"
+tokio-tungstenite = { version = "=0.30.0", features = ["rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", features = ["sink"] }
+
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "=0.22.4"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt"] }

@@ -47,3 +47,30 @@ Limits include browser eviction, imperfect memory erasure, whole-store rollback,
 and unrecalled external copies. Fault-injection tests are not physical power-loss
 proof. Fixture-file scans and logical IndexedDB scans have different coverage;
 report accessible browser backing-file inspection separately.
+
+## M04 candidate signer restrictions
+
+No identity-secret fallback exists. Future capture, replication, attachment,
+background and routing scopes remain inactive; empty scope denies. API presence
+is distinct from approval. Decrypt capability probes need an explicit grant and
+user action, use fresh disposable encrypted material, and contact no public relay.
+
+nos2x 2.5.2 is incompatible with private chats: a disposable real run observed
+its provider logging the decrypted probe result in the page console. Do not mask
+that console output or label it a privacy pass. Browser-extension private decrypt
+is currently disabled in Rust and UI. Alby 3.15.0 was researched but did not finish
+runtime privacy acceptance within the shortened investigation; it is not approved.
+Firefox extension private decryption is also unverified and disabled for now.
+
+AUTH requests require a confirmed account, exact approved relay/challenge,
+unchanged empty content and exactly two tags, age <=120 seconds and future skew
+<=30 seconds. Verify canonical ID and signature after approval. The result is
+consumable only as an AUTH message. Pending approvals expire after 120 seconds;
+client pairing expires after 300 seconds. Lock/cancel/revocation invalidate late
+results, and the main-page broker checks cancellation before additional prompts.
+
+Current limitations: full malicious NIP46 transport and Android callback/recreation
+acceptance is unfinished; signer-proposed relay switching and remote logout are
+not implemented. They must not be advertised as successful revocation or adopted
+silently. Real signers are separate trust boundaries; an API capability observation
+is not an assurance that a third-party signer handles data privately.

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { Identity } from "./Identity";
 import { failureCode, messages, type VaultStatus } from "./vault-contract";
 import { VaultRuntime } from "./vault-runtime";
 
 export function Vault() {
   const runtime = useRef<VaultRuntime | null>(null);
+  const [host] = useState(() => new VaultRuntime());
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +25,6 @@ export function Vault() {
     setShow(false);
   }
   useEffect(() => {
-    const host = new VaultRuntime();
     runtime.current = host;
     let live = true;
     void host.run({ kind: "status" }).then(
@@ -43,7 +44,7 @@ export function Vault() {
       host.dispose();
       runtime.current = null;
     };
-  }, []);
+  }, [host]);
   useEffect(() => {
     if (status?.state === "locked" || status?.state === "absent")
       passwordField.current?.focus();
@@ -123,7 +124,10 @@ export function Vault() {
   return (
     <section aria-labelledby="vault-title">
       <h2 id="vault-title">Protect your saved backup</h2>
-      <p>No account or relay is contacted.</p>
+      <p>
+        Vault operations stay local. Signer connections require your explicit
+        action.
+      </p>
       {error && <p role="alert">{error}</p>}
       {!status && !busy && (
         <button onClick={() => void retry()}>Retry storage</button>
@@ -133,7 +137,7 @@ export function Vault() {
         <form onSubmit={(event) => void submit(event)}>
           <p>
             {creating
-              ? "Create an encrypted local vault. You can connect an account in a later milestone."
+              ? "Create an encrypted local vault, then connect your account."
               : changing
                 ? "Confirm your current password to protect the same vault with a new password."
                 : "Unlock your saved local vault."}
@@ -227,11 +231,9 @@ export function Vault() {
       )}
       {status?.state === "unlocked" && !changing && (
         <>
-          <p>
-            Your local vault is ready. Account connection and backup are not
-            implemented yet.
-          </p>
+          <p>Your local vault is ready. Backup is not implemented yet.</p>
           <p role="status">Setup saved securely on this device.</p>
+          <Identity host={host} />
           <button
             onClick={() => {
               clear();

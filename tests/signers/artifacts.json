@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-10-05",
+  "purpose": "Pinned upstream artifacts for isolated M04 interoperability tests; no user identities.",
+  "runtimeVerification": "partial; full acceptance incomplete; see per-artifact evidence",
+  "artifacts": [
+    {
+      "id": "nos2x-chromium",
+      "version": "2.5.2",
+      "artifact": "nos2x.crx",
+      "sha256": "a96fa0b233ccc067c8ad0f90a08c0a903b79a09f3f95b5bb442e818c7caa3c05",
+      "sourceRepository": "https://github.com/fiatjaf/nos2x",
+      "sourceCommit": "014493f9602d0a3826ef3eab2bdd4901ee315cce",
+      "distributionUrl": "https://chromewebstore.google.com/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp",
+      "extensionId": "kpgefcfmnafjgpblomihpgmejjdanjjp",
+      "verification": {
+        "embeddedVersion": "2.5.2",
+        "crxFormat": 3,
+        "verifiedSignatureCount": 3,
+        "publisherKeySha256": "af64525cd0596f1bec87f6c49930d99fa57cb5ae225a66bdbf7f8aa4513774da",
+        "publisherMatchesExtensionId": true,
+        "sourceReproducibility": "unverified"
+      },
+      "runtimeVerification": "connection, confirmation and synthetic NIP44 succeeded; privacy FAILED",
+      "privateChatCompatibility": "incompatible: real NIP44 disposable plaintext logged in page console"
+    },
+    {
+      "id": "nos2x-firefox",
+      "version": "1.21.0.1",
+      "releaseTag": "v1.21.0",
+      "artifact": "nos2x-fox_1.21.0.1.signed.xpi",
+      "sha256": "d1ac34e84c1960319850e7c62326083ef38684270aabc21bc2236ad60b3b1f90",
+      "sourceRepository": "https://github.com/diegogurpegui/nos2x-fox",
+      "sourceCommit": "dc2a2af80844924d4cdb5e060e2bc9239c6c89cb",
+      "downloadUrl": "https://github.com/diegogurpegui/nos2x-fox/releases/download/v1.21.0/nos2x-fox_1.21.0.1.signed.xpi",
+      "extensionId": "{fdacee2c-bab4-490d-bc4b-ecdd03d5d68a}",
+      "verification": {
+        "embeddedVersion": "1.21.0.1",
+        "minimumFirefoxVersion": "128.0",
+        "cmsSignature": "verified-against-mozilla-addon-root",
+        "mozillaRootUrl": "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/security/manager/ssl/addons-public.pem",
+        "mozillaRootFileSha256": "69a98604f9c424d17ede053f68d8265272351aa35d23099b3a8384284309abf0",
+        "manifestDigestVerified": true,
+        "verifiedEntryCount": 51,
+        "unlistedNonSignatureEntries": 0,
+        "sourceReproducibility": "unverified"
+      },
+      "runtimeVerification": "signed artifact loaded in disposable Firefox; complete approval flow unverified"
+    },
+    {
+      "id": "nak-linux",
+      "version": "0.21.0",
+      "releaseTag": "v0.21.0",
+      "artifact": "nak-v0.21.0-linux-amd64",
+      "sha256": "7bf6d8d82a9e9cf9aca74a04449fb2235bc49624a73b3539cf7d6f95304837a1",
+      "sourceRepository": "https://github.com/fiatjaf/nak",
+      "sourceCommit": "2437c91c46564099994029a0856dcc7e3b287d91",
+      "downloadUrl": "https://github.com/fiatjaf/nak/releases/download/v0.21.0/nak-v0.21.0-linux-amd64",
+      "verification": {
+        "buildToolchain": "go1.27.1",
+        "os": "linux",
+        "architecture": "amd64",
+        "embeddedVcsRevision": "2437c91c46564099994029a0856dcc7e3b287d91",
+        "embeddedVcsModified": true,
+        "independentBinarySignature": "unverified",
+        "sourceReproducibility": "unverified"
+      },
+      "runtimeVerification": "production native bunker connect, confirm, NIP04, NIP44, scoped kind22242 signing with AUTH acknowledgement and local disconnect passed; full acceptance remains incomplete"
+    },
+    {
+      "id": "amber-android",
+      "version": "6.6.6",
+      "releaseTag": "v6.6.6",
+      "artifact": "amber-offline-x86_64-v6.6.6.apk",
+      "sha256": "1e1fd11cd309a4a14f6b870f4de39c07cfaed0763f763e02151847d7d688bf19",
+      "sourceRepository": "https://github.com/greenart7c3/Amber",
+      "sourceCommit": "fc2e0de5ddcc6f25ac1ae08f43a0073440a70355",
+      "downloadUrl": "https://github.com/greenart7c3/Amber/releases/download/v6.6.6/amber-offline-x86_64-v6.6.6.apk",
+      "verification": {
+        "packageName": "com.greenart7c3.nostrsigner",
+        "embeddedVersionName": "6.6.6",
+        "embeddedVersionCode": 208,
+        "minSdk": 26,
+        "targetSdk": 37,
+        "apkSignatureSchemesVerified": [2, 3],
+        "apkSignerCertificateSha256": "e8ab8c69333b68636dd46ce242408c79553a7fd9055d054d61daababada53bbf",
+        "manifestSha256": "af5be5c307c164fad5ad7e9a6c9e2304ab609ea8f0395d81b52b1f781fcec97c",
+        "manifestSignatureSha256": "3a8ec930454bb4e7c331225f15ff6f455b65b76198f9da8bcfbba37fe2a4a65f",
+        "gpgKeyFingerprint": "44F0AAEB77F373747E3D5444885822EED3A26A6D",
+        "gpgKeyUrl": "https://github.com/greenart7c3.gpg",
+        "gpgSignatureStatus": ["VALIDSIG", "EXPKEYSIG"],
+        "gpgKeyExpiredAtUnix": 1755883803,
+        "gpgCurrentKeyValidity": "not-established-expired-key",
+        "continuityComparison": {
+          "artifact": "amber-offline-x86_64-v6.5.1.apk",
+          "sha256": "f11b5c43b13fcd6ef4171d0a39cbcfab3914d0ab943d8f5b726f254677c61ee3",
+          "apkCertificateMatches": true,
+          "apkSignatureSchemesVerified": [2, 3]
+        },
+        "sourceReproducibility": "unverified"
+      },
+      "runtimeVerification": "signed APK installed on disposable emulator; one run connected and confirmed account; full decrypt/approval acceptance failed"
+    }
+  ]
+}

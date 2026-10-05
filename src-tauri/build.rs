@@ -4,6 +4,9 @@ fn main() {
             "runtime_info",
             "foundation_proof",
             "vault_command",
+            "identity_command",
+            "identity_transport",
+            "identity_packages",
         ]),
     ))
     .expect("failed to build Tauri application metadata");

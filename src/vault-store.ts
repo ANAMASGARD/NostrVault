@@ -146,10 +146,18 @@ export function readSnapshot(db: IDBDatabase): Promise<Snapshot> {
     };
   });
 }
-export function readRecord(
+export async function readRecord(
   db: IDBDatabase,
   key: string,
 ): Promise<StoredRecord> {
+  const value = await readOptionalRecord(db, key);
+  if (!value) throw new Error("storage");
+  return value;
+}
+export function readOptionalRecord(
+  db: IDBDatabase,
+  key: string,
+): Promise<StoredRecord | null> {
   if (!/^[a-f0-9]{64}$/.test(key)) return Promise.reject(new Error("limit"));
   return new Promise((resolve, reject) => {
     const tx = db.transaction("records", "readonly");
@@ -157,7 +165,9 @@ export function readRecord(
     tx.onabort = () => reject(storageError(tx.error));
     tx.oncomplete = () => {
       try {
-        resolve(parseRecord(request.result));
+        resolve(
+          request.result === undefined ? null : parseRecord(request.result),
+        );
       } catch {
         reject(new Error("storage"));
       }

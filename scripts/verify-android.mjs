@@ -83,7 +83,11 @@ if (boot.status !== 0 || boot.stdout.trim() !== "1")
     `Emulator ${serial} is not booted (adb exit ${boot.status}, response ${JSON.stringify(boot.stdout.trim())}, diagnostic ${JSON.stringify(boot.stderr.trim())}). Build checks do not replace instrumentation.`,
   );
 // Separate instrumentation invocations ensure the headless proof starts before UI setup.
-for (const testClass of ["HeadlessFoundationTest", "FoundationTest"]) {
+for (const testClass of [
+  "HeadlessFoundationTest",
+  "FoundationTest",
+  "SignerResultTest",
+]) {
   run(
     "./gradlew",
     [

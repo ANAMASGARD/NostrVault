@@ -243,3 +243,5 @@ pub extern "system" fn Java_com_nostrvault_app_HeadlessVault_nativeBenchmark<'ca
     });
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
+
+pub mod identity_transport;

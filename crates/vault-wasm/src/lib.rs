@@ -155,6 +155,50 @@ impl VaultSession {
             .map_err(vault_error)
             .and_then(|m| vault_json(&m))
     }
+    pub fn identity_index(&self) -> Result<String, JsValue> {
+        self.session.identity_index().map_err(vault_error)
+    }
+    pub fn identity_pointer(&mut self, record: &str) -> Result<String, JsValue> {
+        if record.len() > 65536 {
+            return Err(error("limit"));
+        }
+        let record: Option<vault_core::vault::Record> =
+            serde_json::from_str(record).map_err(|_| error("malformed"))?;
+        vault_json(
+            &self
+                .session
+                .identity_pointer(record.as_ref())
+                .map_err(vault_error)?,
+        )
+    }
+    pub fn identity_restore(&mut self, record: &str) -> Result<(), JsValue> {
+        if record.len() > 65536 {
+            return Err(error("limit"));
+        }
+        self.session
+            .identity_restore(&serde_json::from_str(record).map_err(|_| error("malformed"))?)
+            .map_err(vault_error)
+    }
+    pub fn identity_prepare(
+        &mut self,
+        request: &str,
+        revision: u32,
+        now: f64,
+    ) -> Result<String, JsValue> {
+        if request.len() > vault_core::identity::WIRE_LIMIT || !now.is_finite() || now < 0.0 {
+            return Err(error("limit"));
+        }
+        let request = serde_json::from_str(request).map_err(|_| error("malformed"))?;
+        vault_json(
+            &self
+                .session
+                .identity_prepare(request, revision, now as u64, &mut BrowserEntropy)
+                .map_err(vault_error)?,
+        )
+    }
+    pub fn identity_committed(&mut self, revision: u32) {
+        self.session.identity_committed(revision);
+    }
     pub fn lookup_setup(&self) -> Result<String, JsValue> {
         self.session.lookup_setup().map_err(vault_error)
     }
