@@ -97,8 +97,8 @@ export function Identity({ host }: { host: VaultRuntime }) {
     <section aria-labelledby="identity-title">
       <h3 id="identity-title">Connect Nostr account</h3>
       <p>
-        Your signer keeps your identity secret. Backup collection is not
-        implemented yet.
+        Your signer keeps your identity secret. Public-note recovery is
+        available in the Linux preview.
       </p>
       {error && <p role="alert">{error}</p>}
       {view?.failure && (

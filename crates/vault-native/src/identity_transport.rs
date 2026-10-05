@@ -6,7 +6,7 @@ use vault_core::{
     identity::{Binding, WIRE_LIMIT},
     vault::{Error, Result},
 };
-fn tls_connector() -> Result<tokio_tungstenite::Connector> {
+pub(crate) fn tls_connector() -> Result<tokio_tungstenite::Connector> {
     // Use an explicit provider so portable/headless hosts do not depend on a
     // different consumer enabling rustls defaults. Certificate validation stays mandatory.
     let roots = rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());

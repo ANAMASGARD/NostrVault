@@ -7,6 +7,7 @@ fn main() {
             "identity_command",
             "identity_transport",
             "identity_packages",
+            "backup_command",
         ]),
     ))
     .expect("failed to build Tauri application metadata");

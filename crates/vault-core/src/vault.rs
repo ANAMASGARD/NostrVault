@@ -1049,3 +1049,60 @@ mod lifecycle_tests {
         assert_eq!(session.status().state, State::Locked);
     }
 }
+
+impl Session {
+    pub fn backup_validate(&self, binding: &crate::backup::Binding) -> Result<()> {
+        if self.status.state != State::Unlocked {
+            return Err(Error::Locked);
+        }
+        if self.status.vault_id.as_ref() != Some(&binding.vault_id)
+            || self.status.token != binding.token
+            || self.status.generation != binding.generation
+        {
+            return Err(Error::Cancelled);
+        }
+        Ok(())
+    }
+    pub fn backup_account(&self) -> Result<String> {
+        let view = self.identity.view();
+        if view.state != "connected" {
+            return Err(Error::Authentication);
+        }
+        view.account.ok_or(Error::Authentication)
+    }
+    pub fn backup_lookup(&self) -> Result<String> {
+        self.keys
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .lookup(SETUP_ACCOUNT, crate::backup::RECORD)
+    }
+    pub fn backup_open(&self, record: &Record) -> Result<crate::backup::Backup> {
+        let bytes = self.keys.as_ref().ok_or(Error::Locked)?.open(
+            SETUP_ACCOUNT,
+            crate::backup::RECORD,
+            record,
+        )?;
+        crate::backup::Backup::parse(&bytes)
+    }
+    pub fn backup_seal(
+        &self,
+        data: &crate::backup::Backup,
+        revision: u32,
+        entropy: &mut dyn Entropy,
+    ) -> Result<Mutation> {
+        let bytes = Zeroizing::new(data.bytes()?);
+        let record = self.keys.as_ref().ok_or(Error::Locked)?.seal(
+            SETUP_ACCOUNT,
+            crate::backup::RECORD,
+            revision.checked_add(1).ok_or(Error::Limit)?,
+            &bytes,
+            entropy,
+        )?;
+        Ok(Mutation {
+            expected_revision: revision,
+            header: None,
+            records: vec![record],
+            create: false,
+        })
+    }
+}

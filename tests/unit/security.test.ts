@@ -39,3 +39,16 @@ describe("foundation security configuration", () => {
     );
   });
 });
+
+it("limits recovery IPC to Linux without broadening web or Android capabilities", () => {
+  expect(
+    JSON.parse(readFileSync("src-tauri/capabilities/backup.json", "utf8")),
+  ).toEqual({
+    $schema: "../gen/schemas/desktop-schema.json",
+    identifier: "backup-linux",
+    description: "Explicit bounded public-note backup and recovery on Linux",
+    windows: ["main"],
+    platforms: ["linux"],
+    permissions: ["allow-backup-command"],
+  });
+});

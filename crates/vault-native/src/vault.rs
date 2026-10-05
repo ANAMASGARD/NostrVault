@@ -919,3 +919,74 @@ mod runtime_tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
+
+/// Bounded backup work never holds the vault mutex while awaiting a relay.
+pub(crate) struct BackupLease {
+    pub data: Option<vault_core::backup::Backup>,
+    pub account: Option<String>,
+    pub revision: u32,
+    pub epoch: u64,
+    pub identity: vault_core::identity::Binding,
+}
+impl Runtime {
+    pub(crate) fn backup_context(
+        &self,
+        binding: &vault_core::backup::Binding,
+    ) -> Result<BackupLease> {
+        let inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.backup_validate(binding)?;
+        let store = inner.store.as_ref().ok_or(Error::Locked)?;
+        let record = store.read(&inner.session.backup_lookup()?)?;
+        Ok(BackupLease {
+            data: record
+                .as_ref()
+                .map(|r| inner.session.backup_open(r))
+                .transpose()?,
+            account: inner.session.backup_account().ok(),
+            revision: store.snapshot()?.revision,
+            epoch: self.epoch.load(Ordering::SeqCst),
+            identity: inner.session.identity_binding()?,
+        })
+    }
+    pub(crate) fn backup_check(
+        &self,
+        binding: &vault_core::backup::Binding,
+        lease: &BackupLease,
+    ) -> Result<()> {
+        let inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.backup_validate(binding)?;
+        if lease.epoch != self.epoch.load(Ordering::SeqCst)
+            || lease.identity != inner.session.identity_binding()?
+        {
+            return Err(Error::Cancelled);
+        }
+        if inner.session.status().revision != lease.revision {
+            return Err(Error::Conflict);
+        }
+        Ok(())
+    }
+    pub(crate) fn backup_commit(
+        &self,
+        binding: &vault_core::backup::Binding,
+        lease: &BackupLease,
+        data: &vault_core::backup::Backup,
+    ) -> Result<()> {
+        let mut inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.backup_validate(binding)?;
+        if lease.epoch != self.epoch.load(Ordering::SeqCst)
+            || lease.identity != inner.session.identity_binding()?
+        {
+            return Err(Error::Cancelled);
+        }
+        let mutation = inner
+            .session
+            .backup_seal(data, lease.revision, &mut OsEntropy)?;
+        inner
+            .store
+            .as_mut()
+            .ok_or(Error::Locked)?
+            .commit(&mutation)?;
+        inner.session.identity_committed(lease.revision + 1);
+        Ok(())
+    }
+}

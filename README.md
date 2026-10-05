@@ -2,7 +2,9 @@
 
 Your Nostr history should survive your relay.
 
-NostrVault is being built as a local-first backup and recovery application for supported Nostr history and conversations on web/PWA, Linux, and Android. Milestone 03 adds a password-protected local vault: create, save setup, lock, restart, unlock, and change password. It is **not yet a working backup application**. The Milestone 04 candidate adds account connection and scoped signer consent, with a verified Linux remote-signer subset; full signer acceptance is incomplete. Browser-extension private-message decryption is disabled because no replacement has passed the privacy gate. Relay collection, offline chats, archive import/export, and recovery remain unimplemented. Platform evidence and limitations are recorded in the implementation notes.
+NostrVault is being built as a local-first backup and recovery application. This branch adds a **Linux public-note recovery preview**: explicitly approve one source, capture validated public notes into the existing encrypted vault, read them after a restart with the source offline, then approve restoration to another relay and independently read the events back. See the [bounded scope and disposable demo](docs/linux-recovery-mvp.md).
+
+This is manual, bounded public-note capture, not a complete history or automatic-backup product. M04 signer acceptance and Android teardown remain incomplete; PR #4 stays draft. Browser-extension private decryption remains disabled. Private chats, portable archives, attachments, background capture and automatic migration remain unimplemented.
 
 The approved roadmap is in [the existing 15-milestone plan](MEMORY/NostrVault-15-Commit-Plan.md). Product behavior, architecture, and security requirements are documented in [product contract](docs/product-contract.md), [architecture decision](docs/architecture.md), and [security contract](docs/security.md). Actual progress and limitations are in [implementation notes](MEMORY/memory.md).
 

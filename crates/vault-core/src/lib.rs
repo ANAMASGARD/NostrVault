@@ -1,4 +1,5 @@
 //! Portable milestone foundation. This is not a production vault format.
+pub mod backup;
 pub mod identity;
 pub mod vault;
 use argon2::{Algorithm, Argon2, Params, Version};

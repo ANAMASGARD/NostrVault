@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "backup-linux",
+  "description": "Explicit bounded public-note backup and recovery on Linux",
+  "windows": ["main"],
+  "platforms": ["linux"],
+  "permissions": ["allow-backup-command"]
+}
