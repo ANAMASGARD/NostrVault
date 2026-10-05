@@ -1,12 +1,12 @@
 # Security contract and initial threat model
 
-Status: foundation controls under verification; not a security audit.
+Status: foundation and M03 vault controls; observed verification is recorded in MEMORY/memory.md. This is not a security audit.
 
 Protect Nostr identity/session credentials, vault keys, plaintext conversations, participant metadata, relay grants, and archive passwords. Untrusted inputs include relay replies, event text, URLs, archives, imported projections, and signer callbacks. Assume a malicious relay/archive author and interrupted writes; do not claim protection from a compromised running device or perfect JavaScript memory erasure.
 
 ## Current foundation
 
-The bundled local UI has one custom permission: read compiled platform/version. The unused opener plugin and default core permission bundle are removed. Commands are listed in Tauri's app manifest so the custom ACL applies. Production CSP permits bundled scripts/styles and IPC only, blocks inline execution, frames, objects, and form submissions. Development CSP separately permits local Vite HMR. No account, relay, analytics, remote font, or attachment requests exist.
+The bundled local UI permits compiled runtime information, isolated foundation proofs, and the bounded vault command. The unused opener plugin and default core permission bundle are removed. Commands are listed in Tauri's app manifest so the custom ACL applies. Production CSP permits bundled scripts/styles and IPC only, blocks inline execution, frames, objects, and form submissions. Development CSP separately permits local Vite HMR. No account, relay, analytics, remote font, or attachment requests exist.
 
 Unit checks inspect capability/CSP configuration. Linux WebDriver checks actual Rust IPC, denied unapproved window IPC, and blocked inline script execution. Browser tests capture page errors and unexpected network requests. These tests do not prove future integrations are secure.
 
@@ -21,3 +21,29 @@ Unit checks inspect capability/CSP configuration. Linux WebDriver checks actual 
 - Platforms: exclude sensitive native data from unintended cloud backup; browser caches contain application assets only. Test production policies, not just a permissive development build.
 
 See [Tauri capabilities](https://v2.tauri.app/security/capabilities/) and [CSP](https://v2.tauri.app/security/csp/). Protocol behavior is pinned and verified when its milestone lands.
+
+## Production vault boundaries
+
+Production KDF policy is fixed at Argon2id v19, 65536 KiB, three passes and four
+lanes. Header parameters are checked before work. Explicit zeroizing KDF buffers
+are necessary: the pinned library allocation helper does not itself wipe its
+whole allocated workspace. Wrapping and record keys are Rust-owned; passwords
+are never persisted. Errors expose categories, not underlying input or secret
+material. Authentication failure is deliberately ambiguous between a wrong
+password and altered protected data.
+
+Native OS locks and browser Web Locks coordinate contexts for the entire
+unlocked session. Database revision checks fence stale mutations. Ciphertext may
+commit during lock; lock never claims rollback. Account namespace identifiers
+and record lookup keys are keyed, opaque values. Their equality, counts, sizes,
+versions and operational timing remain observable.
+
+Native sealed ingress uses age recipient encryption with vault-protected private
+keys and transient explicit grants. Decrypted batches enter an untrusted-candidate
+namespace. Atomic encrypted receipts prevent duplicate merges; encryption does
+not authenticate a sender. Strict pause remains default, with no collection UI.
+
+Limits include browser eviction, imperfect memory erasure, whole-store rollback,
+and unrecalled external copies. Fault-injection tests are not physical power-loss
+proof. Fixture-file scans and logical IndexedDB scans have different coverage;
+report accessible browser backing-file inspection separately.

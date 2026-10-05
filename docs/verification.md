@@ -55,3 +55,31 @@ PR CI runs two platform jobs. `verify:web-linux` runs common formatting, types, 
 The target is under seven minutes on a warmed hosted runner. Cold toolchains and cache misses can exceed that; report measured durations before claiming the target achieved. Failed Linux runs preserve the exact built binary for three days and print live process/listening-port diagnostics before cleanup. These are diagnostic artifacts, not release publication.
 
 Gradle task-output caching is enabled, and the Android checks reuse the Gradle daemon within the job. Lint report validation and the emulator instrumentation remain required. Hosted run `37229099465` verified the Linux desktop-session correction in 3m48s. The requested five-minute total is a performance target, not a guarantee for cold caches, hosted setup or Android builds.
+
+## Milestone 03 vault checks
+
+The complete local gate now contains **20 top-level commands**. It retains every
+foundation gate and adds independent native-process vault reopening and KDF
+measurement. Browser tests use actual Workers, Web Locks, IndexedDB, and fresh
+browser processes with persistent disposable profiles. Native tests exercise
+SQLite transactions, ownership, migrations, account isolation and sealed ingress;
+Android tests cover headless JNI, Activity recreation and force-stopped process
+relaunch with retained app data. The Android vault sequence installs the test
+APKs once because Gradle's connected runner uninstalls them after an invocation.
+
+Production crypto tests use the fixed 64 MiB Argon2 profile and shared Rust code,
+including cross-runtime encrypted-record exchange. KDF measurements perform one
+warm-up and five measured derivations. Browser reports are Playwright attachments;
+native and emulator reports are `test-results/m03-native-kdf.json` and
+`test-results/m03-android-kdf.json`. Workspace size is 65536 KiB, distinct from
+process RSS. Run the browser measurement test with `--workers=1` for isolated
+measurement without other test workers. Runtime versions and observed samples
+are recorded in the milestone handoff, not assumed from dependency declarations.
+
+Privacy checks inspect logical IndexedDB, accessible browser backing files,
+native SQLite and companion artifacts, and the Android fixture database. Public
+fixture passwords and body markers provide positive controls; these are bounded
+marker scans, not proof of forensic erasure. Fault injection aborts real storage
+transactions to exercise quota/disk-full recovery; it does not fill the host disk.
+No M02 proof store is imported. Sealed ingress is internal and synthetic only;
+age confidentiality does not authenticate a submitter or validate a Nostr event.

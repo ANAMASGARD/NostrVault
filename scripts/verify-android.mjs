@@ -96,3 +96,4 @@ for (const testClass of ["HeadlessFoundationTest", "FoundationTest"]) {
     "src-tauri/gen/android",
   );
 }
+run("node", ["scripts/verify-android-vault.mjs"]);

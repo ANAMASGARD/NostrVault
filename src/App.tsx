@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { checkFoundation } from "./foundation";
 import { checkRuntime } from "./runtime";
+import { Vault } from "./Vault";
 import "./App.css";
 
 function App() {
@@ -39,39 +40,43 @@ function App() {
 
   return (
     <main>
-      <p className="eyebrow">Development build · Milestone 02</p>
+      <p className="eyebrow">Development build · Milestone 03</p>
       <h1>NostrVault</h1>
       <p>Your Nostr history should survive your relay.</p>
-      <section aria-labelledby="foundation-title">
-        <h2 id="foundation-title">Platform foundation</h2>
-        <p>
-          Backup, signer connection, and offline conversations are not available
-          in this build. No account or relay is contacted.
-        </p>
-        <button disabled={checking} onClick={() => void check()}>
-          Check runtime
-        </button>
-        <p role="status">{status}</p>
-        <button
-          disabled={foundation === "Checking encrypted fixture storage…"}
-          onClick={() => void prove()}
-        >
-          Check shared engine
-        </button>
-        <button
-          disabled={foundation !== "Checking encrypted fixture storage…"}
-          onClick={() => controller.current?.abort()}
-        >
-          Cancel engine check
-        </button>
-        <p aria-live="polite" data-testid="foundation-result">
-          {foundation}
-        </p>
-        <p>
-          Fixture proof only. No user vault is created. Proof passwords and
-          crypto parameters are not production defaults.
-        </p>
-      </section>
+      {!new URLSearchParams(location.search).has("diagnostics") && <Vault />}
+      <details open={new URLSearchParams(location.search).has("diagnostics")}>
+        <summary>Developer diagnostics · public fixtures only</summary>
+        <section aria-labelledby="foundation-title">
+          <h2 id="foundation-title">Platform foundation</h2>
+          <p>
+            Backup, signer connection, and offline conversations are not
+            available in this build. No account or relay is contacted.
+          </p>
+          <button disabled={checking} onClick={() => void check()}>
+            Check runtime
+          </button>
+          <p role="status">{status}</p>
+          <button
+            disabled={foundation === "Checking encrypted fixture storage…"}
+            onClick={() => void prove()}
+          >
+            Check shared engine
+          </button>
+          <button
+            disabled={foundation !== "Checking encrypted fixture storage…"}
+            onClick={() => controller.current?.abort()}
+          >
+            Cancel engine check
+          </button>
+          <p aria-live="polite" data-testid="foundation-result">
+            {foundation}
+          </p>
+          <p>
+            Fixture proof only. No user vault is created. Proof passwords and
+            crypto parameters are not production defaults.
+          </p>
+        </section>
+      </details>
     </main>
   );
 }

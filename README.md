@@ -2,7 +2,7 @@
 
 Your Nostr history should survive your relay.
 
-NostrVault is being built as a local-first backup and recovery application for supported Nostr history and conversations on web/PWA, Linux, and Android. It is **not yet a working backup application**. Milestone 02 adds a shared Rust foundation: signed-event validation, bounded record/key-wrapping cryptography, age interoperability, encrypted fixture persistence, and headless Android JNI. These are isolated public-fixture proofs, not a user vault or working backup. Signers, collection, offline chats, archive import/export, and recovery remain unimplemented.
+NostrVault is being built as a local-first backup and recovery application for supported Nostr history and conversations on web/PWA, Linux, and Android. Milestone 03 adds a password-protected local vault: create, save setup, lock, restart, unlock, and change password. It is **not yet a working backup application**. Account connection, relay collection, offline chats, archive import/export, and recovery remain unimplemented. Platform evidence and limitations are recorded in the implementation notes.
 
 The approved roadmap is in [the existing 15-milestone plan](MEMORY/NostrVault-15-Commit-Plan.md). Product behavior, architecture, and security requirements are documented in [product contract](docs/product-contract.md), [architecture decision](docs/architecture.md), and [security contract](docs/security.md). Actual progress and limitations are in [implementation notes](MEMORY/memory.md).
 

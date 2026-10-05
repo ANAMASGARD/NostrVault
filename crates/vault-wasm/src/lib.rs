@@ -115,3 +115,110 @@ pub fn core_proof() -> Result<(), JsValue> {
 pub fn archive_proof(payload: &Uint8Array) -> Result<(), JsValue> {
     age_proof::verify_reference_proof(&input(payload, MAX_PAYLOAD)?).map_err(error)
 }
+
+struct BrowserEntropy;
+impl vault_core::vault::Entropy for BrowserEntropy {
+    fn fill(&mut self, bytes: &mut [u8]) -> vault_core::vault::Result<()> {
+        getrandom::getrandom(bytes).map_err(|_| vault_core::vault::Error::Randomness)
+    }
+}
+fn vault_error(value: vault_core::vault::Error) -> JsValue {
+    let code = serde_json::to_string(&value).unwrap_or_else(|_| "\"crypto\"".into());
+    error(code.trim_matches('"'))
+}
+fn vault_json<T: serde::Serialize>(value: &T) -> Result<String, JsValue> {
+    serde_json::to_string(value).map_err(|_| error("malformed"))
+}
+#[wasm_bindgen]
+pub struct VaultSession {
+    session: vault_core::vault::Session,
+}
+#[wasm_bindgen]
+impl VaultSession {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Result<VaultSession, JsValue> {
+        Ok(Self {
+            session: vault_core::vault::Session::new(&mut BrowserEntropy).map_err(vault_error)?,
+        })
+    }
+    pub fn status(&self) -> Result<String, JsValue> {
+        vault_json(&self.session.status())
+    }
+    pub fn prepare(&mut self, request: &str, snapshot: &str) -> Result<String, JsValue> {
+        if request.len() > 16384 || snapshot.len() > 8192 {
+            return Err(error("limit"));
+        }
+        let request = serde_json::from_str(request).map_err(|_| error("malformed"))?;
+        let snapshot = serde_json::from_str(snapshot).map_err(|_| error("malformed"))?;
+        self.session
+            .prepare(&request, &snapshot, &mut BrowserEntropy)
+            .map_err(vault_error)
+            .and_then(|m| vault_json(&m))
+    }
+    pub fn lookup_setup(&self) -> Result<String, JsValue> {
+        self.session.lookup_setup().map_err(vault_error)
+    }
+    pub fn finish_unlock(&mut self, record: &str) -> Result<(), JsValue> {
+        if record.len() > 16384 {
+            return Err(error("limit"));
+        }
+        let record = serde_json::from_str(record).map_err(|_| error("malformed"))?;
+        self.session.finish_unlock(&record).map_err(vault_error)
+    }
+    pub fn committed(&mut self) -> Result<(), JsValue> {
+        self.session.committed().map_err(vault_error)
+    }
+    pub fn lock(&mut self) {
+        self.session.lock();
+    }
+}
+
+/// Isolated public-fixture benchmark; never accepts or returns user material.
+#[wasm_bindgen]
+pub fn vault_kdf_probe() -> Result<(), JsValue> {
+    let _key = vault_core::vault::derive("benchmark test only", &[7; 16]).map_err(vault_error)?;
+    Ok(())
+}
+
+/// Public synthetic record vectors for the isolated platform conformance harness.
+/// No fixture identity or password is accepted by the production session API.
+#[wasm_bindgen]
+pub fn vault_record_vectors() -> Result<String, JsValue> {
+    use vault_core::vault::Keys;
+    let keys =
+        Keys::create("production vector test only", &mut BrowserEntropy).map_err(vault_error)?;
+    let record = keys
+        .seal(
+            "fixture-account-a",
+            "fixture-record",
+            1,
+            b"M03 PRIVATE MESSAGE MARKER",
+            &mut BrowserEntropy,
+        )
+        .map_err(vault_error)?;
+    if keys
+        .open("fixture-account-b", "fixture-record", &record)
+        .is_ok()
+    {
+        return Err(error("crypto"));
+    }
+    for index in [0, 24, record.bytes.len() - 1] {
+        let mut tampered = record.clone();
+        tampered.bytes[index] ^= 1;
+        if keys
+            .open("fixture-account-a", "fixture-record", &tampered)
+            .is_ok()
+        {
+            return Err(error("crypto"));
+        }
+    }
+    if keys
+        .open("fixture-account-a", "fixture-record", &record)
+        .map_err(vault_error)?
+        .as_slice()
+        != b"M03 PRIVATE MESSAGE MARKER"
+    {
+        return Err(error("crypto"));
+    }
+    vault_json(&serde_json::json!({"header":keys.header,"record":record}))
+}

@@ -9,7 +9,7 @@ test("shared engine persists encrypted fixture across actual Worker replacement"
 }) => {
   let workers = 0;
   page.on("worker", () => workers++);
-  await page.goto("/");
+  await page.goto("/?diagnostics");
   await page.getByRole("button", { name: "Check shared engine" }).click();
   await expect(page.getByTestId("foundation-result")).toHaveText(
     /Rust\/WASM foundation ready · \d+ fixture bytes · encrypted storage reopened/,
@@ -30,7 +30,7 @@ test("cancels a pending Worker and a fresh request succeeds", async ({
   context,
 }) => {
   await context.route("**/*vault_wasm*.wasm", () => {});
-  await page.goto("/");
+  await page.goto("/?diagnostics");
   await page.getByRole("button", { name: "Check shared engine" }).click();
   await page.getByRole("button", { name: "Cancel engine check" }).click();
   await expect(page.getByTestId("foundation-result")).toHaveText(
@@ -79,7 +79,7 @@ test("WASM rejects invalid data and exchanges age ciphertext with native and ref
         });
       } else await route.abort();
     });
-    await page.goto("/");
+    await page.goto("/?diagnostics");
     const fixtures = {
       event: readFileSync("crates/vault-core/fixtures/event.json", "utf8"),
       payload: Array.from(

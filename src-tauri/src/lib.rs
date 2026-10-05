@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 use tauri::Manager;
 use vault_core::{ErrorCode, FoundationError};
 
@@ -43,6 +44,36 @@ async fn foundation_proof(
     .map_err(|_| FoundationError::new(ErrorCode::Crypto))?
 }
 
+#[tauri::command]
+async fn vault_command(
+    app: tauri::AppHandle,
+    runtime: tauri::State<'_, OnceLock<Arc<vault_native::vault::Runtime>>>,
+    request: String,
+) -> Result<vault_core::vault::Status, vault_core::vault::Error> {
+    let request = zeroize::Zeroizing::new(request);
+    if request.len() > 16384 {
+        return Err(vault_core::vault::Error::Limit);
+    }
+    let request: vault_core::vault::Request =
+        serde_json::from_str(&request).map_err(|_| vault_core::vault::Error::Malformed)?;
+    if runtime.get().is_none() {
+        let directory = app
+            .path()
+            .app_data_dir()
+            .map_err(|_| vault_core::vault::Error::Storage)?
+            .join("vault");
+        let host = Arc::new(vault_native::vault::Runtime::new(directory)?);
+        let _ = runtime.set(host);
+    }
+    let runtime = Arc::clone(runtime.get().ok_or(vault_core::vault::Error::Storage)?);
+    if matches!(request.operation, vault_core::vault::Operation::Lock) {
+        runtime.invalidate();
+    }
+    tauri::async_runtime::spawn_blocking(move || runtime.execute(&request))
+        .await
+        .map_err(|_| vault_core::vault::Error::Storage)?
+}
+
 #[derive(Serialize)]
 struct RuntimeInfo {
     platform: &'static str,
@@ -60,7 +91,12 @@ fn runtime_info() -> RuntimeInfo {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if let Err(error) = tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![runtime_info, foundation_proof])
+        .manage(OnceLock::<Arc<vault_native::vault::Runtime>>::new())
+        .invoke_handler(tauri::generate_handler![
+            runtime_info,
+            foundation_proof,
+            vault_command
+        ])
         .run(tauri::generate_context!())
     {
         eprintln!("Application runtime failed: {error}");
