@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Backup } from "./Backup";
 import { Identity } from "./Identity";
 import { failureCode, messages, type VaultStatus } from "./vault-contract";
 import { VaultRuntime } from "./vault-runtime";
@@ -231,9 +232,10 @@ export function Vault() {
       )}
       {status?.state === "unlocked" && !changing && (
         <>
-          <p>Your local vault is ready. Backup is not implemented yet.</p>
+          <p>Your local vault is ready.</p>
           <p role="status">Setup saved securely on this device.</p>
           <Identity host={host} />
+          {__NATIVE_BUILD__ && <Backup host={host} />}
           <button
             onClick={() => {
               clear();

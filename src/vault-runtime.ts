@@ -1,4 +1,9 @@
 import {
+  parseBackup,
+  type BackupAction,
+  type BackupOutput,
+} from "./backup-contract";
+import {
   parseIdentity,
   type IdentityAction,
   type IdentityOutput,
@@ -31,6 +36,32 @@ export class VaultRuntime {
       timer: ReturnType<typeof setTimeout>;
     }
   >();
+  async backup(action: BackupAction): Promise<BackupOutput> {
+    if (!__NATIVE_BUILD__ || this.status?.state !== "unlocked")
+      throw new Error("unsupported");
+    const generation = this.generation;
+    const requestId = crypto.randomUUID();
+    const binding = {
+      vaultId: this.status.vaultId,
+      token: this.status.token,
+      generation: this.status.generation,
+    };
+    const { invoke } = await import("@tauri-apps/api/core");
+    const result = parseBackup(
+      await invoke<unknown>("backup_command", {
+        request: JSON.stringify({ requestId, binding, action }),
+      }),
+    );
+    if (
+      generation !== this.generation ||
+      result.requestId !== requestId ||
+      result.binding.token !== binding.token ||
+      result.binding.vaultId !== binding.vaultId ||
+      result.binding.generation !== binding.generation
+    )
+      throw new Error("cancelled");
+    return result;
+  }
   private async send(request: VaultRequest): Promise<VaultStatus> {
     if (__NATIVE_BUILD__) {
       const { invoke } = await import("@tauri-apps/api/core");

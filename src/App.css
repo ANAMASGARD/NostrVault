@@ -97,3 +97,8 @@ textarea {
   max-width: 100%;
   font: inherit;
 }
+
+.backup-note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

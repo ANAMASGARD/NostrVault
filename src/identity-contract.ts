@@ -11,6 +11,7 @@ export type Binding = {
 export type Grants = {
   readable: boolean;
   relayAuth: string[];
+  lookup: string[];
   capture: string[];
   replication: string[];
   attachments: string[];
@@ -127,7 +128,9 @@ export function parseIdentity(v: unknown): IdentityOutput {
     typeof g.readable !== "boolean" ||
     typeof g.background !== "boolean" ||
     typeof g.routingMetadata !== "boolean" ||
-    ![g.relayAuth, g.capture, g.replication, g.attachments].every(strings)
+    ![g.relayAuth, g.lookup, g.capture, g.replication, g.attachments].every(
+      strings,
+    )
   )
     throw new Error("malformed");
   if (v.effect !== null) {

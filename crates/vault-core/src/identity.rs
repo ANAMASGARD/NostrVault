@@ -31,8 +31,10 @@ pub struct Capabilities {
 pub struct Grants {
     pub readable: bool,
     pub relay_auth: Vec<String>,
-    // Reserved scopes are deliberately never dispatched in M04.
+    #[serde(default)]
+    pub lookup: Vec<String>,
     pub capture: Vec<String>,
+    // Reserved scopes are deliberately never dispatched until later milestones.
     pub replication: Vec<String>,
     pub attachments: Vec<String>,
     pub background: bool,
@@ -41,7 +43,8 @@ pub struct Grants {
 impl Grants {
     fn validate(&self) -> Result<()> {
         if self.relay_auth.len() > 4
-            || !self.capture.is_empty()
+            || self.lookup.len() > crate::collection::MAX_LOOKUP_RELAYS
+            || self.capture.len() > crate::collection::MAX_CAPTURE_RELAYS
             || !self.replication.is_empty()
             || !self.attachments.is_empty()
             || self.background
@@ -49,7 +52,12 @@ impl Grants {
         {
             return Err(Error::Unsupported);
         }
-        for url in &self.relay_auth {
+        for url in self
+            .relay_auth
+            .iter()
+            .chain(&self.lookup)
+            .chain(&self.capture)
+        {
             relay(url)?;
         }
         Ok(())
@@ -269,6 +277,12 @@ impl Identity {
     }
     pub fn account(&self) -> Option<&str> {
         self.view.account.as_deref()
+    }
+    pub fn confirmed(&self) -> bool {
+        self.confirmed
+    }
+    pub fn consent_revision(&self) -> u32 {
+        self.consent_revision
     }
     pub fn pending(&self) -> Option<Effect> {
         self.pending.as_ref().map(|p| p.effect.clone())

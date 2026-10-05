@@ -919,3 +919,131 @@ mod runtime_tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
+
+/// Bounded backup work never holds the vault mutex while awaiting a relay.
+pub(crate) struct BackupLease {
+    pub data: Option<vault_core::backup::BackupSnapshot>,
+    pub job: Option<vault_core::collection::InitialCollectionJob>,
+    pub account: Option<String>,
+    pub grants: vault_core::identity::Grants,
+    pub consent_revision: u32,
+    pub signer_connected: bool,
+    pub revision: u32,
+    pub epoch: u64,
+    pub identity: vault_core::identity::Binding,
+}
+impl Runtime {
+    fn backup_open_snapshot(
+        session: &vault_core::vault::Session,
+        store: &Store,
+    ) -> Result<Option<vault_core::backup::BackupSnapshot>> {
+        if let Ok(key) = session.backup_lookup_v2() {
+            if let Some(record) = store.read(&key)? {
+                return session.backup_open_v2(&record).map(Some);
+            }
+        }
+        if let Ok(key) = session.backup_lookup_legacy() {
+            if let Some(record) = store.read(&key)? {
+                return session.backup_open_legacy(&record).map(Some);
+            }
+        }
+        Ok(None)
+    }
+    pub(crate) fn backup_context(
+        &self,
+        binding: &vault_core::backup::Binding,
+    ) -> Result<BackupLease> {
+        let inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.backup_validate(binding)?;
+        let store = inner.store.as_ref().ok_or(Error::Locked)?;
+        let data = Self::backup_open_snapshot(&inner.session, store)?;
+        let job = session_job(&inner.session, store)?;
+        Ok(BackupLease {
+            data,
+            job,
+            account: inner.session.backup_collection_account().ok(),
+            grants: inner.session.backup_grants(),
+            consent_revision: inner.session.backup_consent_revision(),
+            signer_connected: inner.session.backup_signer_connected(),
+            revision: store.snapshot()?.revision,
+            epoch: self.epoch.load(Ordering::SeqCst),
+            identity: inner.session.identity_binding()?,
+        })
+    }
+    pub(crate) fn backup_check(
+        &self,
+        binding: &vault_core::backup::Binding,
+        lease: &BackupLease,
+    ) -> Result<()> {
+        let inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.backup_validate(binding)?;
+        if lease.epoch != self.epoch.load(Ordering::SeqCst)
+            || lease.identity != inner.session.identity_binding()?
+        {
+            return Err(Error::Cancelled);
+        }
+        if inner.session.status().revision != lease.revision {
+            return Err(Error::Conflict);
+        }
+        Ok(())
+    }
+    pub(crate) fn backup_commit(
+        &self,
+        binding: &vault_core::backup::Binding,
+        lease: &BackupLease,
+        data: &vault_core::backup::BackupSnapshot,
+    ) -> Result<()> {
+        let mut inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.backup_validate(binding)?;
+        if lease.epoch != self.epoch.load(Ordering::SeqCst)
+            || lease.identity != inner.session.identity_binding()?
+        {
+            return Err(Error::Cancelled);
+        }
+        let mutation = inner
+            .session
+            .backup_seal_v2(data, lease.revision, &mut OsEntropy)?;
+        inner
+            .store
+            .as_mut()
+            .ok_or(Error::Locked)?
+            .commit(&mutation)?;
+        inner.session.identity_committed(lease.revision + 1);
+        Ok(())
+    }
+    pub(crate) fn backup_commit_job(
+        &self,
+        binding: &vault_core::backup::Binding,
+        lease: &BackupLease,
+        job: &vault_core::collection::InitialCollectionJob,
+    ) -> Result<()> {
+        let mut inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.backup_validate(binding)?;
+        if lease.epoch != self.epoch.load(Ordering::SeqCst)
+            || lease.identity != inner.session.identity_binding()?
+        {
+            return Err(Error::Cancelled);
+        }
+        let mutation = inner
+            .session
+            .backup_job_seal(job, lease.revision, &mut OsEntropy)?;
+        inner
+            .store
+            .as_mut()
+            .ok_or(Error::Locked)?
+            .commit(&mutation)?;
+        inner.session.identity_committed(lease.revision + 1);
+        Ok(())
+    }
+}
+
+fn session_job(
+    session: &vault_core::vault::Session,
+    store: &Store,
+) -> Result<Option<vault_core::collection::InitialCollectionJob>> {
+    let key = session.backup_job_lookup()?;
+    store
+        .read(&key)?
+        .map(|r| session.backup_job_open(&r))
+        .transpose()
+}

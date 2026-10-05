@@ -1,5 +1,7 @@
 #[path = "../../shared/age_proof.rs"]
 pub mod age_proof;
+pub mod backup;
+pub mod relay;
 pub mod spool;
 pub mod storage;
 pub mod vault;

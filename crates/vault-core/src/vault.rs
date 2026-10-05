@@ -1049,3 +1049,128 @@ mod lifecycle_tests {
         assert_eq!(session.status().state, State::Locked);
     }
 }
+
+impl Session {
+    pub fn backup_validate(&self, binding: &crate::backup::Binding) -> Result<()> {
+        if self.status.state != State::Unlocked {
+            return Err(Error::Locked);
+        }
+        if self.status.vault_id.as_ref() != Some(&binding.vault_id)
+            || self.status.token != binding.token
+            || self.status.generation != binding.generation
+        {
+            return Err(Error::Cancelled);
+        }
+        Ok(())
+    }
+    pub fn backup_collection_account(&self) -> Result<String> {
+        if !self.identity.confirmed() {
+            return Err(Error::Authentication);
+        }
+        self.identity
+            .account()
+            .map(str::to_string)
+            .ok_or(Error::Authentication)
+    }
+    pub fn backup_signer_connected(&self) -> bool {
+        self.identity.view().state == "connected"
+    }
+    pub fn backup_grants(&self) -> crate::identity::Grants {
+        self.identity.view().grants.clone()
+    }
+    pub fn backup_consent_revision(&self) -> u32 {
+        self.identity.consent_revision()
+    }
+    pub fn backup_lookup_v2(&self) -> Result<String> {
+        self.keys
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .lookup(SETUP_ACCOUNT, crate::backup::RECORD)
+    }
+    pub fn backup_lookup_legacy(&self) -> Result<String> {
+        self.keys
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .lookup(SETUP_ACCOUNT, crate::backup::LEGACY_RECORD)
+    }
+    pub fn backup_open_v2(&self, record: &Record) -> Result<crate::backup::BackupSnapshot> {
+        let bytes = self.keys.as_ref().ok_or(Error::Locked)?.open(
+            SETUP_ACCOUNT,
+            crate::backup::RECORD,
+            record,
+        )?;
+        crate::backup::BackupSnapshot::parse(&bytes)
+    }
+    pub fn backup_open_legacy(&self, record: &Record) -> Result<crate::backup::BackupSnapshot> {
+        let bytes = self.keys.as_ref().ok_or(Error::Locked)?.open(
+            SETUP_ACCOUNT,
+            crate::backup::LEGACY_RECORD,
+            record,
+        )?;
+        crate::backup::migrate_legacy_v1(&bytes)
+    }
+    pub fn backup_seal_v2(
+        &self,
+        data: &crate::backup::BackupSnapshot,
+        revision: u32,
+        entropy: &mut dyn Entropy,
+    ) -> Result<Mutation> {
+        let bytes = Zeroizing::new(data.bytes()?);
+        let record = self.keys.as_ref().ok_or(Error::Locked)?.seal(
+            SETUP_ACCOUNT,
+            crate::backup::RECORD,
+            revision.checked_add(1).ok_or(Error::Limit)?,
+            &bytes,
+            entropy,
+        )?;
+        Ok(Mutation {
+            expected_revision: revision,
+            header: None,
+            records: vec![record],
+            create: false,
+        })
+    }
+    pub fn backup_job_lookup(&self) -> Result<String> {
+        self.keys.as_ref().ok_or(Error::Locked)?.lookup(
+            SETUP_ACCOUNT,
+            crate::collection::InitialCollectionJob::RECORD,
+        )
+    }
+    pub fn backup_job_open(
+        &self,
+        record: &Record,
+    ) -> Result<crate::collection::InitialCollectionJob> {
+        let bytes = self.keys.as_ref().ok_or(Error::Locked)?.open(
+            SETUP_ACCOUNT,
+            crate::collection::InitialCollectionJob::RECORD,
+            record,
+        )?;
+        let job: crate::collection::InitialCollectionJob =
+            serde_json::from_slice(&bytes).map_err(|_| Error::Malformed)?;
+        if job.version != 1 {
+            return Err(Error::Unsupported);
+        }
+        Ok(job)
+    }
+    pub fn backup_job_seal(
+        &self,
+        job: &crate::collection::InitialCollectionJob,
+        revision: u32,
+        entropy: &mut dyn Entropy,
+    ) -> Result<Mutation> {
+        let bytes = Zeroizing::new(serde_json::to_vec(job).map_err(|_| Error::Malformed)?);
+        let record = self.keys.as_ref().ok_or(Error::Locked)?.seal(
+            SETUP_ACCOUNT,
+            crate::collection::InitialCollectionJob::RECORD,
+            revision.checked_add(1).ok_or(Error::Limit)?,
+            &bytes,
+            entropy,
+        )?;
+        Ok(Mutation {
+            expected_revision: revision,
+            header: None,
+            records: vec![record],
+            create: false,
+        })
+    }
+}

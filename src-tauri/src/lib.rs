@@ -131,6 +131,19 @@ async fn identity_packages(app: tauri::AppHandle) -> Result<Vec<String>, vault_c
         Ok(vec![])
     }
 }
+#[tauri::command]
+async fn backup_command(
+    runtime: tauri::State<'_, OnceLock<Arc<vault_native::vault::Runtime>>>,
+    request: String,
+) -> Result<vault_native::backup::Output, vault_core::vault::Error> {
+    if request.len() > 8192 {
+        return Err(vault_core::vault::Error::Limit);
+    }
+    let request =
+        serde_json::from_str(&request).map_err(|_| vault_core::vault::Error::Malformed)?;
+    let runtime = Arc::clone(runtime.get().ok_or(vault_core::vault::Error::Locked)?);
+    vault_native::backup::execute(runtime, request).await
+}
 #[derive(Serialize)]
 struct RuntimeInfo {
     platform: &'static str,
@@ -183,7 +196,8 @@ pub fn run() {
             vault_command,
             identity_command,
             identity_transport,
-            identity_packages
+            identity_packages,
+            backup_command
         ])
         .build(tauri::generate_context!())
     {

@@ -23,7 +23,8 @@
     "verify:android": "node scripts/verify.mjs android",
     "build:wasm": "node scripts/build-wasm.mjs",
     "predev": "npm run build:wasm",
-    "verify:signers": "node scripts/verify-signers.mjs"
+    "verify:signers": "node scripts/verify-signers.mjs",
+    "test:recovery:linux": "xvfb-run -a dbus-run-session -- node scripts/test-recovery-linux.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.1",
