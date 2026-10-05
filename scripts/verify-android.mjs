@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { diagnoseInstrumentation } from "./android-instrumentation.mjs";
 
 for (const variable of ["JAVA_HOME", "ANDROID_HOME", "NDK_HOME"]) {
   if (!process.env[variable])
@@ -83,8 +84,13 @@ if (boot.status !== 0 || boot.stdout.trim() !== "1")
     `Emulator ${serial} is not booted (adb exit ${boot.status}, response ${JSON.stringify(boot.stdout.trim())}, diagnostic ${JSON.stringify(boot.stderr.trim())}). Build checks do not replace instrumentation.`,
   );
 // Separate instrumentation invocations ensure the headless proof starts before UI setup.
-for (const testClass of ["HeadlessFoundationTest", "FoundationTest"]) {
-  run(
+for (const testClass of [
+  "HeadlessFoundationTest",
+  "FoundationTest",
+  "SignerResultTest",
+]) {
+  await diagnoseInstrumentation(
+    testClass,
     "./gradlew",
     [
       ...gradle,
@@ -93,7 +99,7 @@ for (const testClass of ["HeadlessFoundationTest", "FoundationTest"]) {
       "-x",
       ":app:rustBuildUniversalDebug",
     ],
-    "src-tauri/gen/android",
+    { cwd: "src-tauri/gen/android", gradle: true, timeout: 300000 },
   );
 }
 run("node", ["scripts/verify-android-vault.mjs"]);

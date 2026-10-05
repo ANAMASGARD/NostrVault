@@ -22,7 +22,8 @@
     "verify:linux": "node scripts/verify.mjs linux",
     "verify:android": "node scripts/verify.mjs android",
     "build:wasm": "node scripts/build-wasm.mjs",
-    "predev": "npm run build:wasm"
+    "predev": "npm run build:wasm",
+    "verify:signers": "node scripts/verify-signers.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.1",

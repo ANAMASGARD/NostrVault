@@ -106,6 +106,14 @@ jobs:
           done
           exit 1
       - run: node scripts/verify-android.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: android-vault-crash-diagnostics
+          path: |
+            test-results/android/**
+            test-results/m03-android-*.txt
+          retention-days: 3
       - name: Stop disposable emulator
         if: always()
         run: $ANDROID_HOME/platform-tools/adb -s "$ANDROID_SERIAL" emu kill || true

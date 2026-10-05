@@ -1,6 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  diagnoseInstrumentation,
+  redactDiagnostic,
+} from "./android-instrumentation.mjs";
 const serial = process.env.ANDROID_SERIAL;
 if (!serial || !/^emulator-\d+$/.test(serial) || !process.env.ANDROID_HOME)
   throw new Error("A disposable Android emulator is required");
@@ -29,6 +33,7 @@ call([
   "-r",
   "src-tauri/gen/android/app/build/outputs/apk/androidTest/universal/debug/app-universal-debug-androidTest.apk",
 ]);
+let suiteError;
 try {
   call(["shell", "pm", "clear", "com.nostrvault.app"]);
   mkdirSync("test-results", { recursive: true });
@@ -38,7 +43,9 @@ try {
     "VaultReopenTest",
   ]) {
     call(["shell", "am", "force-stop", "com.nostrvault.app"]);
-    const output = call([
+    await diagnoseInstrumentation(name, adb, [
+      "-s",
+      serial,
       "shell",
       "am",
       "instrument",
@@ -49,13 +56,6 @@ try {
       `com.nostrvault.app.${name}`,
       "com.nostrvault.app.test/androidx.test.runner.AndroidJUnitRunner",
     ]);
-    writeFileSync(`test-results/m03-android-${name}.txt`, output);
-    if (
-      !/OK \(1 test\)/.test(output) ||
-      /FAILURES|INSTRUMENTATION_FAILED/.test(output)
-    )
-      throw new Error(`Android ${name} failed: ${output}`);
-    console.log(`PASS Android ${name}`);
     if (name === "HeadlessVaultTest") {
       const benchmark = JSON.parse(
         call([
@@ -116,7 +116,18 @@ try {
   console.log(
     "PASS Android production SQLite marker scan; no physical ARM64 claim",
   );
+} catch (error) {
+  suiteError = error;
 } finally {
-  call(["uninstall", "com.nostrvault.app.test"]);
-  call(["uninstall", "com.nostrvault.app"]);
+  for (const name of ["com.nostrvault.app.test", "com.nostrvault.app"]) {
+    try {
+      call(["uninstall", name]);
+    } catch (error) {
+      console.error(
+        redactDiagnostic(`Fixture cleanup failed: ${error.message}`),
+      );
+      suiteError ||= error;
+    }
+  }
 }
+if (suiteError) throw suiteError;

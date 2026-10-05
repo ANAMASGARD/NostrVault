@@ -88,3 +88,12 @@ summary {
   border-left: 3px solid currentColor;
   padding-left: 0.75rem;
 }
+
+.identity-key {
+  overflow-wrap: anywhere;
+}
+select,
+textarea {
+  max-width: 100%;
+  font: inherit;
+}

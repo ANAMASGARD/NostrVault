@@ -20,6 +20,9 @@ describe("foundation security configuration", () => {
         "allow-runtime-info",
         "allow-foundation-proof",
         "allow-vault-command",
+        "allow-identity-command",
+        "allow-identity-transport",
+        "allow-identity-packages",
       ],
     });
   });

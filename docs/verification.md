@@ -83,3 +83,25 @@ marker scans, not proof of forensic erasure. Fault injection aborts real storage
 transactions to exercise quota/disk-full recovery; it does not fill the host disk.
 No M02 proof store is imported. Sealed ingress is internal and synthetic only;
 age confidentiality does not authenticate a submitter or validate a Nostr event.
+
+## M04 candidate verification
+
+`npm run verify:commit` retains 20 top-level commands and includes identity Rust,
+main-page broker, browser lifecycle and Android foreground-result parsing tests.
+It never installs a signer or calls third-party infrastructure. Existing M01–M03
+regressions, CSP/ACL checks and exact Android lint exceptions are retained.
+
+`NOSTRVAULT_SIGNER_CACHE=/path/to/prepared-cache npm run verify:signers` verifies
+all frozen artifact hashes before running a real local nak acceptance subset.
+It performs no downloads. The command currently exits nonzero because the full
+Firefox/Android/negative-case acceptance matrix remains incomplete. Its structured
+report is `test-results/signers.json`; raw signer protocol diagnostics are not saved.
+For focused development only, append `-- --linux-subset`. A passing subset does not
+make M04 complete. The native fixture uses only an isolated local relay and a public
+disposable fixture identity, never a user's identity or public relay.
+
+The explicit Android `RealSignerTest` is outside ordinary deterministic instrumentation.
+It needs the frozen Amber APK and a separately prepared disposable signer account,
+plus instrumentation argument realSigners=true. It is currently failing and must
+not be counted as a pass. Replacement Chromium research ended early under the
+maintainer's speed constraint; browser private decryption remains unsupported.

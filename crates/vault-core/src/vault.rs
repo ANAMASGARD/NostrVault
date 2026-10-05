@@ -444,6 +444,8 @@ pub struct Snapshot {
     pub setup: Option<Record>,
 }
 pub struct Session {
+    identity: crate::identity::Identity,
+    identity_account: Option<String>,
     keys: Option<Keys>,
     status: Status,
     pending: Option<Status>,
@@ -452,6 +454,8 @@ impl Session {
     pub fn new(entropy: &mut dyn Entropy) -> Result<Self> {
         Ok(Self {
             keys: None,
+            identity: Default::default(),
+            identity_account: None,
             pending: None,
             status: Status {
                 state: State::Absent,
@@ -473,6 +477,8 @@ impl Session {
             .lookup(SETUP_ACCOUNT, SETUP_KEY)
     }
     pub fn lock(&mut self) {
+        self.identity.invalidate();
+        self.identity_account = None;
         self.keys = None;
         self.pending = None;
         self.status.setup = None;
@@ -644,8 +650,179 @@ impl Session {
         self.status = self.pending.take().ok_or(Error::Conflict)?;
         if self.status.state == State::Locked {
             self.keys = None;
+            self.identity.invalidate();
+            self.identity_account = None;
         }
         Ok(())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdentityPrepared {
+    pub output: crate::identity::Output,
+    pub mutation: Option<Mutation>,
+}
+impl Session {
+    pub fn identity_binding(&self) -> Result<crate::identity::Binding> {
+        if self.status.state != State::Unlocked {
+            return Err(Error::Locked);
+        }
+        Ok(crate::identity::Binding {
+            vault_id: self.status.vault_id.clone().ok_or(Error::Locked)?,
+            token: self.status.token.clone(),
+            generation: self.status.generation,
+            account: self.identity.account().map(str::to_owned),
+            signer_generation: self.identity.generation,
+            consent_revision: self.identity.consent_revision,
+        })
+    }
+    pub fn identity_index(&self) -> Result<String> {
+        self.keys
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .lookup(SETUP_ACCOUNT, "identity-index-v1")
+    }
+    pub fn identity_pointer(&mut self, record: Option<&Record>) -> Result<Option<String>> {
+        let keys = self.keys.as_ref().ok_or(Error::Locked)?;
+        self.identity_account = match record {
+            Some(r) => serde_json::from_slice(&keys.open(SETUP_ACCOUNT, "identity-index-v1", r)?)
+                .map_err(|_| Error::Malformed)?,
+            None => None,
+        };
+        self.identity_account
+            .as_ref()
+            .map(|a| keys.lookup(a, crate::identity::RECORD_NAME))
+            .transpose()
+    }
+    pub fn identity_restore(&mut self, record: &Record) -> Result<()> {
+        let account = self.identity_account.as_ref().ok_or(Error::Malformed)?;
+        let plain = self.keys.as_ref().ok_or(Error::Locked)?.open(
+            account,
+            crate::identity::RECORD_NAME,
+            record,
+        )?;
+        let saved: crate::identity::Remembered =
+            serde_json::from_slice(&plain).map_err(|_| Error::Malformed)?;
+        if &saved.account != account {
+            return Err(Error::Authentication);
+        }
+        self.identity.restore(saved)
+    }
+    pub fn identity_prepare(
+        &mut self,
+        request: crate::identity::Request,
+        revision: u32,
+        now: u64,
+        entropy: &mut dyn Entropy,
+    ) -> Result<IdentityPrepared> {
+        use crate::identity::{Action, Output};
+        let binding = self.identity_binding()?;
+        if request.request_id.is_empty() || request.request_id.len() > 64 {
+            return Err(Error::Malformed);
+        }
+        if request.binding.vault_id != binding.vault_id
+            || request.binding.token != binding.token
+            || request.binding.generation != binding.generation
+            || (!matches!(request.action, Action::Status) && request.binding != binding)
+        {
+            return Err(Error::Cancelled);
+        }
+        if self.status.revision != revision {
+            return Err(Error::Conflict);
+        }
+        let previous = self.identity_account.clone();
+        let persist = self
+            .identity
+            .handle(request.action, &binding, now, entropy)?;
+        let mutation = if persist {
+            let next = revision.checked_add(1).ok_or(Error::Limit)?;
+            let remembered = self.identity.remembered()?;
+            let account = remembered.as_ref().map(|r| r.account.clone());
+            let keys = self.keys.as_ref().ok_or(Error::Locked)?;
+            let mut records = vec![keys.seal(
+                SETUP_ACCOUNT,
+                "identity-index-v1",
+                next,
+                &serde_json::to_vec(&account).map_err(|_| Error::Malformed)?,
+                entropy,
+            )?];
+            if let Some(saved) = remembered {
+                let plain =
+                    Zeroizing::new(serde_json::to_vec(&saved).map_err(|_| Error::Malformed)?);
+                records.push(keys.seal(
+                    &saved.account,
+                    crate::identity::RECORD_NAME,
+                    next,
+                    &plain,
+                    entropy,
+                )?);
+            }
+            if let Some(old) = previous.filter(|p| Some(p) != account.as_ref()) {
+                records.push(keys.seal(
+                    &old,
+                    crate::identity::RECORD_NAME,
+                    next,
+                    b"null",
+                    entropy,
+                )?);
+            }
+            self.identity_account = account;
+            Some(Mutation {
+                expected_revision: revision,
+                header: None,
+                records,
+                create: false,
+            })
+        } else {
+            None
+        };
+        Ok(IdentityPrepared {
+            output: Output {
+                request_id: request.request_id,
+                binding: self.identity_binding()?,
+                view: self.identity.view(),
+                effect: self.identity.pending(),
+            },
+            mutation,
+        })
+    }
+    pub fn identity_committed(&mut self, revision: u32) {
+        self.status.revision = revision;
+    }
+    pub fn identity_auth(
+        &mut self,
+        relay: &str,
+        challenge: &str,
+        connection: &str,
+        now: u64,
+        entropy: &mut dyn Entropy,
+    ) -> Result<crate::identity::Effect> {
+        let binding = self.identity_binding()?;
+        self.identity
+            .begin_auth((relay, challenge, connection), &binding, now, entropy)?;
+        self.identity.pending().ok_or(Error::Cancelled)
+    }
+    pub fn identity_take_auth(&mut self) -> Result<Option<crate::identity::VerifiedAuth>> {
+        self.identity_binding()?;
+        Ok(self.identity.take_auth())
+    }
+    pub fn identity_cancel_auth(&mut self) {
+        self.identity.cancel_auth();
+    }
+    pub fn identity_effect(
+        &self,
+        binding: &crate::identity::Binding,
+        id: &str,
+        now: u64,
+    ) -> Result<crate::identity::Effect> {
+        if &self.identity_binding()? != binding {
+            return Err(Error::Cancelled);
+        }
+        self.identity
+            .pending()
+            .filter(|e| e.id == id && e.deadline >= now)
+            .ok_or(Error::Cancelled)
     }
 }
 
