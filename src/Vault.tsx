@@ -6,6 +6,7 @@ import { Identity } from "./Identity";
 import { SyncStatus } from "./SyncStatus";
 import { failureCode, messages, type VaultStatus } from "./vault-contract";
 import { VaultRuntime } from "./vault-runtime";
+import { Viewer } from "./Viewer";
 
 export function Vault() {
   const runtime = useRef<VaultRuntime | null>(null);
@@ -241,6 +242,7 @@ export function Vault() {
           <Chats messages={[]} />
           <SyncStatus job={null} />
           <ArchivePanel />
+          <Viewer messages={[]} />
           {__NATIVE_BUILD__ && <Backup host={host} />}
           <button
             onClick={() => {
