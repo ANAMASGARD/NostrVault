@@ -6,5 +6,5 @@ export const SHELL_CACHE = [
 ] as const;
 
 export function mayCacheAppShell(url: string): boolean {
-  return SHELL_CACHE.some((entry) => url === entry || url.endsWith(entry));
+  return SHELL_CACHE.includes(url as (typeof SHELL_CACHE)[number]);
 }

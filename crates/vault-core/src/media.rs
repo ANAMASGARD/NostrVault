@@ -1,6 +1,7 @@
 //! Opt-in attachment bytes. A URL in a message is not a backed-up file.
 use crate::vault::{Error, Result};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 pub const MAX_MEDIA_BYTES: usize = 512 * 1024;
 
@@ -31,9 +32,10 @@ pub fn admit(
     if payload.len() > MAX_MEDIA_BYTES {
         return Err(Error::Limit);
     }
-    if hash != expected_hash || hash.len() != 64 {
+    let actual_hash = hex::encode(Sha256::digest(payload));
+    if actual_hash != expected_hash || hash != actual_hash {
         return Ok(MediaObject {
-            hash: hash.to_string(),
+            hash: actual_hash,
             bytes: 0,
             host: host.to_string(),
             state: MediaState::Rejected,
@@ -44,14 +46,14 @@ pub fn admit(
     }
     if payload.is_empty() {
         return Ok(MediaObject {
-            hash: hash.to_string(),
+            hash: actual_hash,
             bytes: 0,
             host: host.to_string(),
             state: MediaState::Missing,
         });
     }
     Ok(MediaObject {
-        hash: hash.to_string(),
+        hash: actual_hash,
         bytes: payload.len(),
         host: host.to_string(),
         state: MediaState::Stored,
@@ -62,12 +64,16 @@ pub fn admit(
 mod tests {
     use super::*;
 
+    fn digest(payload: &[u8]) -> String {
+        hex::encode(Sha256::digest(payload))
+    }
+
     #[test]
     fn hash_mismatch_oversize_and_missing_are_distinct() {
-        let hash = "ab".repeat(32);
+        let hash = digest(b"img");
         let allowed = vec!["files.example".into()];
         assert_eq!(
-            admit(&hash, b"nope", &"cd".repeat(32), "files.example", &allowed)
+            admit(&hash, b"nope", &digest(b"img"), "files.example", &allowed)
                 .unwrap()
                 .state,
             MediaState::Rejected
@@ -82,8 +88,9 @@ mod tests {
             ),
             Err(Error::Limit)
         ));
+        let empty = digest(b"");
         assert_eq!(
-            admit(&hash, b"", &hash, "files.example", &allowed)
+            admit(&empty, b"", &empty, "files.example", &allowed)
                 .unwrap()
                 .state,
             MediaState::Missing
