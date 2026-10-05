@@ -1,3 +1,13 @@
+## 2026-10-05 — commit 08 archive
+
+Portable snapshot envelope in `crates/vault-core/src/archive.rs` using the existing authenticated record cipher (not a new cipher and not claimed as zip.age). Manifest version 1, path checks, wrong password, truncated ciphertext, and a failed import that does not replace the previous bytes. UI copy is in `src/ArchivePanel.tsx`. No file-picker IPC yet.
+
+**Verified:** short gate; unit tests 42; archive Rust tests.
+
+**Not verified:** cross-platform file transfer, decompression bombs, `verify:commit`.
+
+---
+
 ## 2026-10-05 — commit 07 sync
 
 Durable catch-up jobs in `crates/vault-core/src/sync.rs`: one id per account/relay/filter, checkpoint advances only after storage, bounded backoff, pause after repeated failures, needs-auth state. `src/SyncStatus.tsx` shows those states. No second database and no live socket loop beyond the existing one-shot collector.

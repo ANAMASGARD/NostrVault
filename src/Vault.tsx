@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ArchivePanel } from "./ArchivePanel";
 import { Backup } from "./Backup";
 import { Chats } from "./Chats";
 import { Identity } from "./Identity";
@@ -239,6 +240,7 @@ export function Vault() {
           <Identity host={host} />
           <Chats messages={[]} />
           <SyncStatus job={null} />
+          <ArchivePanel />
           {__NATIVE_BUILD__ && <Backup host={host} />}
           <button
             onClick={() => {
