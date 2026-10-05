@@ -1,3 +1,15 @@
+## Current handoff — 2026-10-05 — commits 06–15 in progress
+
+| Track              | State                                                                                                                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`main`**         | Through **M05** ([PR #6](https://github.com/ANAMASGARD/NostrVault/pull/6) → `b185500`). Kind-1 restore preview, v2 snapshot, lookup/capture grants, same-socket NIP-42.                                         |
+| **M04 acceptance** | Still incomplete: full signer matrix, Firefox/Android private decrypt.                                                                                                                                          |
+| **Recovery GUI**   | `npm run test:recovery:linux` with pinned nak timed out waiting for “Stored events: 11”. Not a pass.                                                                                                            |
+| **PR #5**          | Closed as superseded by #6.                                                                                                                                                                                     |
+| **Next**           | Milestones 06–15 on `milestone-06-15` with the short gate only (`typecheck`, `lint`, `test:unit`, `cargo fmt --check`, `cargo test -p vault-core -p vault-native`). Full `verify:commit` is not run per commit. |
+
+---
+
 ## Current handoff — 2026-10-05 — `main` @ `446a9d8`
 
 | Track                | State                                                                                                                                                                                                                                                                                        |

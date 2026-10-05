@@ -1,5 +1,6 @@
 //! Portable milestone foundation. This is not a production vault format.
 pub mod backup;
+pub mod chats;
 pub mod collection;
 pub mod identity;
 pub mod vault;
