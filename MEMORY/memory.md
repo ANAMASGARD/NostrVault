@@ -1,3 +1,13 @@
+## 2026-10-05 — commit 14 android
+
+Catch-up schedule contract in `crates/vault-core/src/schedule.rs` and `docs/android-catchup.md`. Unique id, 15 minute minimum, no background decrypt. WorkManager and Storage Access Framework are not registered yet. Kotlin formatting was skipped because no Kotlin changed. No emulator run for this commit.
+
+**Verified:** short gate; schedule Rust test; unit tests 46; native tests.
+
+**Not verified:** device, doze, force-stop, `verify:commit`.
+
+---
+
 ## 2026-10-05 — commit 13 linux
 
 Window-close policy in `crates/vault-core/src/engine.rs`. Default is stop. Keep-running can pause readable decrypt or continue encrypted capture only. Reopen returns the same policy. UI copy says autostart is not enabled. No second database and no package rebuild.

@@ -20,7 +20,8 @@ export function SyncStatus({ job }: { job: SyncView | null }) {
           one-shot. Closing the window stops the engine unless keep-running is
           enabled. Readable history stays paused while locked. Encrypted capture
           while locked is opt-in and does not update the readable list.
-          Autostart is not enabled.
+          Autostart is not enabled. Android catch-up, when scheduled, is
+          approximate and does not decrypt in the background.
         </p>
       )}
     </section>
