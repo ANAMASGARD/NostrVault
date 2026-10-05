@@ -1,0 +1,8 @@
+{
+  "name": "NostrVault",
+  "short_name": "NostrVault",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#17202a",
+  "theme_color": "#17202a"
+}

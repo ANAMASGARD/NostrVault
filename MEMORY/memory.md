@@ -1,3 +1,13 @@
+## 2026-10-05 — commit 12 web
+
+App-shell cache allowlist in `src/pwa.ts`, web manifest, and `docs/web-pwa.md`. Vault data stays in IndexedDB. Closed-browser sync is not claimed. No service worker is registered in this slice, so Playwright was not re-run.
+
+**Verified:** short gate; unit tests 46.
+
+**Not verified:** full `npm run test:web`, storage eviction, `verify:commit`.
+
+---
+
 ## 2026-10-05 — commit 11 media
 
 Opt-in media admission in `crates/vault-core/src/media.rs`. Hash mismatch is rejected, oversized payloads hit the limit, empty payloads stay missing, and a matching payload on an allowed host is stored. UI copy in `src/MediaNote.tsx` says a URL is not a backup. No downloader.
