@@ -366,6 +366,15 @@ impl Runtime {
     pub fn invalidate(&self) {
         self.epoch.fetch_add(1, Ordering::SeqCst);
     }
+
+    /// Clears unlocked session state when the host process stays alive after UI teardown.
+    pub fn secure_lock(&self) -> Result<Status> {
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        let mut inner = self.inner.lock().map_err(|_| Error::Storage)?;
+        inner.session.lock();
+        inner.store = None;
+        Ok(inner.session.status())
+    }
     /// Runs on a host blocking executor, never on the UI thread.
     pub fn execute(&self, request: &Request) -> Result<Status> {
         let locking = matches!(request.operation, Operation::Lock);
@@ -851,6 +860,26 @@ mod runtime_tests {
             ))
             .unwrap();
         assert!(status.setup.is_some());
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn secure_lock_clears_unlocked_session_without_ipc() {
+        let dir = std::env::temp_dir().join(format!("nv-secure-lock-{}", std::process::id()));
+        let host = Runtime::new(dir.clone()).unwrap();
+        let initial = host.inner.lock().unwrap().session.status();
+        let status = host
+            .execute(&request(
+                &initial,
+                Operation::Create {
+                    password: "native test password".into(),
+                    confirmation: "native test password".into(),
+                },
+            ))
+            .unwrap();
+        assert_eq!(status.state, State::Unlocked);
+        let locked = host.secure_lock().unwrap();
+        assert_eq!(locked.state, State::Locked);
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
     }

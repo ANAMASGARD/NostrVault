@@ -59,6 +59,19 @@ open class VaultUiBase {
         awaitText(scenario, expression, "true")
     }
 
+    protected fun waitForWebView(scenario: ActivityScenario<MainActivity>) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
+        while (System.nanoTime() < deadline) {
+            var ready = false
+            scenario.onActivity { activity ->
+                ready = findWebView(activity.window.decorView) != null
+            }
+            if (ready) return
+            Thread.sleep(100)
+        }
+        assertTrue("Native Activity has no WebView after resume", false)
+    }
+
     protected fun fill(scenario: ActivityScenario<MainActivity>, label: String, value: String) {
         evaluate(
             scenario,

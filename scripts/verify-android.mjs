@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { diagnoseInstrumentation } from "./android-instrumentation.mjs";
 
 for (const variable of ["JAVA_HOME", "ANDROID_HOME", "NDK_HOME"]) {
   if (!process.env[variable])
@@ -88,7 +89,8 @@ for (const testClass of [
   "FoundationTest",
   "SignerResultTest",
 ]) {
-  run(
+  await diagnoseInstrumentation(
+    testClass,
     "./gradlew",
     [
       ...gradle,
@@ -97,7 +99,7 @@ for (const testClass of [
       "-x",
       ":app:rustBuildUniversalDebug",
     ],
-    "src-tauri/gen/android",
+    { cwd: "src-tauri/gen/android", gradle: true, timeout: 300000 },
   );
 }
 run("node", ["scripts/verify-android-vault.mjs"]);

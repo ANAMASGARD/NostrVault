@@ -4,6 +4,9 @@ use std::sync::{Arc, OnceLock};
 use tauri::Manager;
 use vault_core::{ErrorCode, FoundationError};
 
+#[cfg(target_os = "android")]
+mod android_lifecycle;
+
 static FOUNDATION_RUNNING: AtomicBool = AtomicBool::new(false);
 
 struct FoundationGuard;
@@ -142,8 +145,25 @@ fn runtime_info() -> RuntimeInfo {
     }
 }
 
+#[cfg(all(target_os = "android", feature = "android-lifecycle-minimal"))]
+fn run_android_minimal() -> Result<(), tauri::Error> {
+    tauri::Builder::default()
+        .build(tauri::generate_context!())?
+        .run(|app, event| android_lifecycle::on_event_minimal(app, event));
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(all(target_os = "android", feature = "android-lifecycle-minimal"))]
+    {
+        if let Err(error) = run_android_minimal() {
+            eprintln!("Application runtime failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let builder = tauri::Builder::default();
     #[cfg(target_os = "android")]
     let builder = builder.plugin(
@@ -155,7 +175,7 @@ pub fn run() {
             })
             .build(),
     );
-    if let Err(error) = builder
+    let app = match builder
         .manage(OnceLock::<Arc<vault_native::vault::Runtime>>::new())
         .invoke_handler(tauri::generate_handler![
             runtime_info,
@@ -165,11 +185,22 @@ pub fn run() {
             identity_transport,
             identity_packages
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
     {
-        eprintln!("Application runtime failed: {error}");
-        std::process::exit(1);
-    }
+        Ok(app) => app,
+        Err(error) => {
+            eprintln!("Application runtime failed: {error}");
+            std::process::exit(1);
+        }
+    };
+    app.run(|app, event| {
+        #[cfg(target_os = "android")]
+        android_lifecycle::on_event(app, event);
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = (app, event);
+        }
+    });
 }
 
 #[cfg(test)]

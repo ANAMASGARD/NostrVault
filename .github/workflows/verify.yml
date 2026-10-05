@@ -110,7 +110,9 @@ jobs:
         if: failure()
         with:
           name: android-vault-crash-diagnostics
-          path: test-results/m03-android-*.txt
+          path: |
+            test-results/android/**
+            test-results/m03-android-*.txt
           retention-days: 3
       - name: Stop disposable emulator
         if: always()
