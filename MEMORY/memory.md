@@ -1,3 +1,23 @@
+## 2026-10-05 — commit 07 sync
+
+Durable catch-up jobs in `crates/vault-core/src/sync.rs`: one id per account/relay/filter, checkpoint advances only after storage, bounded backoff, pause after repeated failures, needs-auth state. `src/SyncStatus.tsx` shows those states. No second database and no live socket loop beyond the existing one-shot collector.
+
+**Verified:** same short gate as commit 06; unit tests 41.
+
+**Not verified:** crash injection against SQLite, live subscription gap, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 06 chats
+
+Implemented conversation projection in `crates/vault-core/src/chats.rs` and a read-only list in `src/Chats.tsx`. Duplicate wraps collapse to one rumor. Sender mismatch is rejected. Pending, failed, and verified stay distinct; deleted or expired bodies are not shown. The unlocked vault starts with an empty list until a signer-verified projection is supplied. No live decrypt IPC yet.
+
+**Verified:** `npm run typecheck`, `npm run lint`, `npm run test:unit` (40), `cargo fmt --all -- --check`, `cargo test --locked -p vault-core -p vault-native`.
+
+**Not verified:** real NIP-17 unwrap against a signer, `verify:commit`.
+
+---
+
 ## Current handoff — 2026-10-05 — commits 06–15 in progress
 
 | Track              | State                                                                                                                                                                                                           |

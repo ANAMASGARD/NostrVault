@@ -3,6 +3,7 @@ pub mod backup;
 pub mod chats;
 pub mod collection;
 pub mod identity;
+pub mod sync;
 pub mod vault;
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{

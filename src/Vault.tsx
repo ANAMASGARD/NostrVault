@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Backup } from "./Backup";
 import { Chats } from "./Chats";
 import { Identity } from "./Identity";
+import { SyncStatus } from "./SyncStatus";
 import { failureCode, messages, type VaultStatus } from "./vault-contract";
 import { VaultRuntime } from "./vault-runtime";
 
@@ -237,6 +238,7 @@ export function Vault() {
           <p role="status">Setup saved securely on this device.</p>
           <Identity host={host} />
           <Chats messages={[]} />
+          <SyncStatus job={null} />
           {__NATIVE_BUILD__ && <Backup host={host} />}
           <button
             onClick={() => {
