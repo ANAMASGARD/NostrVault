@@ -221,13 +221,19 @@ try {
   await fill("Approved signer relay URLs, separated by spaces", a);
   await click("Connect");
   await click("Confirm account");
-  await fill("Source relay", a);
-  await click("Back up now");
+  await script(
+    "Array.from(document.querySelectorAll('details')).find(d=>d.querySelector('summary')?.textContent==='Advanced').open=true",
+  );
+  await fill("Approved capture relay URLs", a);
+  await click("Save backup relay grants");
+  await delay(750);
+  await fill("Capture source relay", a);
+  await click("Run initial collection");
   await wait(
-    "document.querySelector('[aria-labelledby=backup-title]')?.textContent.includes('11 public notes')",
+    "(() => { const t = document.querySelector('[aria-labelledby=backup-title]')?.textContent ?? ''; return t.includes('Stored events:') && t.includes('11'); })()",
   );
   report.observations.push(
-    "real NIP46 confirmation; 11 eligible public notes captured into encrypted vault",
+    "real NIP46 confirmation; 11 eligible kind-1 notes captured into encrypted vault",
   );
   source.kill("SIGTERM");
   signer.kill("SIGTERM");
@@ -241,11 +247,11 @@ try {
   await fill("Password", "Linux recovery fixture password");
   await click("Unlock");
   await wait(
-    "document.querySelector('[aria-labelledby=backup-title]')?.textContent.includes('11 public notes')",
+    "(() => { const t = document.querySelector('[aria-labelledby=backup-title]')?.textContent ?? ''; return t.includes('Stored events:') && t.includes('11'); })()",
   );
   assert.equal(
     await script(
-      "return document.querySelectorAll('[aria-label=\"Saved public notes\"] li').length",
+      "return document.querySelectorAll('[aria-label=\"Saved kind-1 previews\"] li').length",
     ),
     11,
   );
@@ -254,9 +260,9 @@ try {
   );
   await fill("Recovery destination relay", c);
   await script(
-    "Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('I approve publishing')).querySelector('input').click()",
+    "Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('I approve publishing eligible kind-1')).querySelector('input').click()",
   );
-  await click("Restore and independently verify");
+  await click("Restore and verify (kind 1 only)");
   await wait(
     "document.querySelector('[aria-labelledby=backup-title] [role=alert]') !== null",
   );
@@ -266,9 +272,9 @@ try {
   );
   await fill("Recovery destination relay", b);
   await script(
-    "Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('I approve publishing')).querySelector('input').click()",
+    "Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('I approve publishing eligible kind-1')).querySelector('input').click()",
   );
-  await click("Restore and independently verify");
+  await click("Restore and verify (kind 1 only)");
   await wait(
     "document.querySelector('[aria-labelledby=backup-title]')?.textContent.includes('11 of 11')",
   );

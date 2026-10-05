@@ -1,21 +1,35 @@
 import { object } from "./vault-contract";
 export type CollectionProfile =
-  | "public_history"
-  | "legacy_direct_messages"
-  | "gift_wraps";
+  "public_history" | "legacy_direct_messages" | "gift_wraps";
+
+export type DiscoverySuggestions = {
+  history: string[];
+  inbox: string[];
+};
+
+export type InitialJob = {
+  version: number;
+  profile: CollectionProfile;
+  relay: string;
+  consentRevision: number;
+  state: string;
+  lastAttempt: number;
+};
 
 export type BackupAction =
   | { kind: "read"; offset: number }
   | { kind: "check_source" }
-  | {
-      kind: "discover";
-      lookupRelays: string[];
-      approved: boolean;
-    }
+  | { kind: "discover"; lookupRelays: string[] }
   | {
       kind: "capture";
       relay: string;
-      approved: boolean;
+      profile?: CollectionProfile;
+    }
+  | { kind: "resume_collection" }
+  | { kind: "cancel_collection" }
+  | {
+      kind: "start_initial_job";
+      relay: string;
       profile?: CollectionProfile;
     }
   | { kind: "restore"; relay: string; approved: boolean };
@@ -28,9 +42,11 @@ export type BackupOutput = {
   count: number;
   suppressed: number;
   excluded: number;
-  notes: { id: string; content: string; createdAt: number }[];
+  rejected: number;
+  notes: { id: string; content: string; createdAt: number; kind: number }[];
   outcome: string;
-  suggestions: string[];
+  suggestions: DiscoverySuggestions;
+  job: InitialJob | null;
   restore: null | {
     destination: string;
     checkedAt: number;
@@ -49,6 +65,29 @@ function count(v: unknown): number {
   if (typeof v !== "number" || !Number.isSafeInteger(v) || v < 0)
     throw new Error("malformed");
   return v;
+}
+function relayList(v: unknown): string[] {
+  if (!Array.isArray(v) || v.length > 16) throw new Error("malformed");
+  return v.map((s) => text(s));
+}
+function parseSuggestions(v: unknown): DiscoverySuggestions {
+  if (!object(v)) return { history: [], inbox: [] };
+  return {
+    history: relayList(v.history),
+    inbox: relayList(v.inbox),
+  };
+}
+function parseJob(v: unknown): InitialJob | null {
+  if (v === null || v === undefined) return null;
+  if (!object(v)) throw new Error("malformed");
+  return {
+    version: count(v.version),
+    profile: text(v.profile, 64) as CollectionProfile,
+    relay: text(v.relay),
+    consentRevision: count(v.consentRevision),
+    state: text(v.state, 64),
+    lastAttempt: count(v.lastAttempt),
+  };
 }
 export function parseBackup(v: unknown): BackupOutput {
   if (
@@ -88,18 +127,19 @@ export function parseBackup(v: unknown): BackupOutput {
     count: count(v.count),
     suppressed: count(v.suppressed),
     excluded: count(v.excluded),
+    rejected: count(v.rejected ?? 0),
     notes: v.notes.map((n: unknown) => {
       if (!object(n)) throw new Error("malformed");
       return {
         id: text(n.id, 64),
         content: text(n.content, 16384),
         createdAt: count(n.createdAt),
+        kind: count(n.kind ?? 1),
       };
     }),
     outcome: text(v.outcome, 64),
-    suggestions: Array.isArray(v.suggestions)
-      ? v.suggestions.map((s) => text(s))
-      : [],
+    suggestions: parseSuggestions(v.suggestions),
+    job: parseJob(v.job),
     restore,
   };
 }

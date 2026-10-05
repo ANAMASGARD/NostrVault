@@ -10,8 +10,11 @@ it("rejects malformed or unbounded public-note pages and verification claims", (
     count: 0,
     suppressed: 0,
     excluded: 0,
+    rejected: 0,
     notes: [],
     outcome: "offline_ready",
+    suggestions: { history: [], inbox: [] },
+    job: null,
     restore: null,
   };
   expect(parseBackup(base).notes).toEqual([]);

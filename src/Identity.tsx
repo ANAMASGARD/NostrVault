@@ -31,16 +31,26 @@ export function Identity({ host }: { host: VaultRuntime }) {
     [pairing, setPairing] = useState(""),
     [relays, setRelays] = useState("");
   const [authRelays, setAuthRelays] = useState("");
+  const [lookupRelays, setLookupRelays] = useState("");
+  const [captureRelays, setCaptureRelays] = useState("");
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const active = useRef(false),
     epoch = useRef(0);
+  function syncGrantFields(grants: IdentityOutput["view"]["grants"]) {
+    setAuthRelays(grants.relayAuth.join(" "));
+    setLookupRelays(grants.lookup.join(" "));
+    setCaptureRelays(grants.capture.join(" "));
+  }
   useEffect(() => {
     let live = true;
     const lifecycle = epoch;
     void host.identity({ kind: "status" }).then(
       (v) => {
-        if (live) setOutput(v);
+        if (live) {
+          setOutput(v);
+          syncGrantFields(v.view.grants);
+        }
       },
       () => {
         if (live) setError("Unlock the vault again to inspect account state.");
@@ -75,6 +85,7 @@ export function Identity({ host }: { host: VaultRuntime }) {
       let next = await host.identity(action);
       while (generation === epoch.current) {
         setOutput(next);
+        syncGrantFields(next.view.grants);
         if (!next.effect) break;
         next = await host.signer(next.effect);
       }
@@ -326,6 +337,43 @@ export function Identity({ host }: { host: VaultRuntime }) {
                 />
               </label>
               <button disabled={busy}>Save authentication scope</button>
+            </form>
+            <p>
+              Lookup relays (max 3) may read your kind 10002 / 10050 metadata
+              only. Capture relays may download history you approve below.
+            </p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void run({
+                  kind: "grants",
+                  grants: {
+                    ...view.grants,
+                    lookup: lookupRelays.split(/\s+/).filter(Boolean),
+                    capture: captureRelays.split(/\s+/).filter(Boolean),
+                  },
+                });
+              }}
+            >
+              <label>
+                Approved lookup relay URLs
+                <input
+                  value={lookupRelays}
+                  onChange={(event) => setLookupRelays(event.target.value)}
+                  spellCheck={false}
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                Approved capture relay URLs
+                <input
+                  value={captureRelays}
+                  onChange={(event) => setCaptureRelays(event.target.value)}
+                  spellCheck={false}
+                  autoComplete="off"
+                />
+              </label>
+              <button disabled={busy}>Save backup relay grants</button>
             </form>
             <p>
               Adapter: {view.adapter}. Replication, attachments, background
