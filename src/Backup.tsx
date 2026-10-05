@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { BackupAction, BackupOutput } from "./backup-contract";
+import { restoreSummary } from "./recovery";
 import type { VaultRuntime } from "./vault-runtime";
 
 export function Backup({ host }: { host: VaultRuntime }) {
@@ -316,8 +317,10 @@ export function Backup({ host }: { host: VaultRuntime }) {
       </form>
       {view?.restore && (
         <p role="status">
-          Destination: {view.restore.destination} · verified{" "}
-          {view.restore.verified} of {view.restore.attempted}.
+          Destination: {view.restore.destination}.{" "}
+          {restoreSummary(view.restore.verified, view.restore.attempted)} An
+          acknowledgement alone is not counted as verified. Private events are
+          not sent to a public relay from this preview.
         </p>
       )}
     </section>

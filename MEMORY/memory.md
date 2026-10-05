@@ -1,3 +1,13 @@
+## 2026-10-05 — commit 09 viewer
+
+Offline search in `src/viewer.ts` and `src/Viewer.tsx`. Matches visible message text only, strips HTML tags before display, and unmounts with the unlocked vault so the query is not kept after lock. No plaintext search index and no relay call on open.
+
+**Verified:** short gate; unit tests 43.
+
+**Not verified:** large-history virtualization, blocked-network browser run, `verify:commit`.
+
+---
+
 ## 2026-10-05 — commit 08 archive
 
 Portable snapshot envelope in `crates/vault-core/src/archive.rs` using the existing authenticated record cipher (not a new cipher and not claimed as zip.age). Manifest version 1, path checks, wrong password, truncated ciphertext, and a failed import that does not replace the previous bytes. UI copy is in `src/ArchivePanel.tsx`. No file-picker IPC yet.
