@@ -4,7 +4,7 @@ Implemented the maintained Tauri pattern (`prevent_exit` + main WebView recreate
 
 **Verified (API-36 x86_64 emulator, strict collector):** `LifecycleDiagnosisTest`, `LifecycleFrameworkTest#closeRecreate`, `LifecycleFrameworkTest#freshProcessReopen`, `VaultCreateTest`, `VaultReopenTest`; full **10+10** via `NOSTRVAULT_ANDROID_LIFECYCLE_REPEAT=10 node scripts/verify-android-lifecycle-repeat.mjs` (2026-10-05, ~232s). No attributable FORTIFY/crash-buffer fatals on those vault/lifecycle cases. `cargo clippy` (nostrvault/vault-native), `npm run typecheck`, `npm run lint`, and `node --test tests/tooling/android-instrumentation.test.mjs` passed.
 
-**Not verified / open:** Same-process second `ActivityScenario.launch` WebView rebind (tauri#15671); `verify-android-lifecycle-minimal.mjs` feature APK not green end-to-end; hosted CI; M04 signer/privacy acceptance; merge/release. PR #4 and PR #5 remain draft.
+**Not verified / open:** Same-process second `ActivityScenario.launch` WebView rebind (tauri#15671); `verify-android-lifecycle-minimal.mjs` feature APK not green end-to-end; full M04 signer/privacy acceptance (`verify:signers` matrix). **Merged:** PR #4 → `main` at `c90888b` (2026-10-05); hosted web-linux + android checks green on merge head. Release not authorized. PR #5 (hackathon Linux preview) remains draft.
 
 **Follow-up (2026-10-05):** `scripts/android-instrumentation.mjs` no longer fails the gate when `emulator -version` is unavailable. Fixed deadlock in `secure_lock_clears_unlocked_session_without_ipc`. Re-ran `NOSTRVAULT_ANDROID_LIFECYCLE_REPEAT=2 node scripts/verify-android-lifecycle-repeat.mjs` (2× create, 2× reopen setup+reopen, framework closeRecreate + freshProcessReopen) — all passed strict collector.
 
