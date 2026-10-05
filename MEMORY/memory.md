@@ -1,3 +1,13 @@
+## 2026-10-05 — commit 15 release evidence
+
+README and `docs/compatibility.md` list what commits 06–15 implement and what they do not prove. No signing keys, no public deploy, no demo video. The Linux recovery GUI script remains a fail from the earlier nak run. Full signer matrix, ARM64 runtime, physical devices, closed-browser sync, and WorkManager execution stay unverified.
+
+**Verified:** short gate plus `git diff --check`.
+
+**Not verified:** `npm run verify:commit`, hosted CI, release artifacts for this branch.
+
+---
+
 ## 2026-10-05 — commit 14 android
 
 Catch-up schedule contract in `crates/vault-core/src/schedule.rs` and `docs/android-catchup.md`. Unique id, 15 minute minimum, no background decrypt. WorkManager and Storage Access Framework are not registered yet. Kotlin formatting was skipped because no Kotlin changed. No emulator run for this commit.
