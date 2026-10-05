@@ -1,3 +1,23 @@
+## 2026-10-05 — commit 11 media
+
+Opt-in media admission in `crates/vault-core/src/media.rs`. Hash mismatch is rejected, oversized payloads hit the limit, empty payloads stay missing, and a matching payload on an allowed host is stored. UI copy in `src/MediaNote.tsx` says a URL is not a backup. No downloader.
+
+**Verified:** short gate; unit tests 45; media Rust test; native tests.
+
+**Not verified:** real HTTP fetch, offline image preview, `verify:commit`.
+
+---
+
+## 2026-10-05 — commit 10 recovery
+
+Restore classification in `crates/vault-core/src/recovery.rs`: acknowledged, verified read-back, rejected, and unknown stay distinct. Private restore requires an inbox grant. Backup status copy uses the eligible-count sentence and says an acknowledgement is not verification.
+
+**Verified:** short gate; unit tests 44; recovery Rust tests; native tests.
+
+**Not verified:** live lost-ACK relay drill, `test:recovery:linux`, `verify:commit`.
+
+---
+
 ## 2026-10-05 — commit 09 viewer
 
 Offline search in `src/viewer.ts` and `src/Viewer.tsx`. Matches visible message text only, strips HTML tags before display, and unmounts with the unlocked vault so the query is not kept after lock. No plaintext search index and no relay call on open.

@@ -4,6 +4,7 @@ pub mod backup;
 pub mod chats;
 pub mod collection;
 pub mod identity;
+pub mod media;
 pub mod recovery;
 pub mod sync;
 pub mod vault;

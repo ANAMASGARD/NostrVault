@@ -3,6 +3,7 @@ import { ArchivePanel } from "./ArchivePanel";
 import { Backup } from "./Backup";
 import { Chats } from "./Chats";
 import { Identity } from "./Identity";
+import { MediaNote } from "./MediaNote";
 import { SyncStatus } from "./SyncStatus";
 import { failureCode, messages, type VaultStatus } from "./vault-contract";
 import { VaultRuntime } from "./vault-runtime";
@@ -243,6 +244,7 @@ export function Vault() {
           <SyncStatus job={null} />
           <ArchivePanel />
           <Viewer messages={[]} />
+          <MediaNote state={null} />
           {__NATIVE_BUILD__ && <Backup host={host} />}
           <button
             onClick={() => {
