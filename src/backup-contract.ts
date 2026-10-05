@@ -1,8 +1,24 @@
 import { object } from "./vault-contract";
+export type CollectionProfile =
+  | "public_history"
+  | "legacy_direct_messages"
+  | "gift_wraps";
+
 export type BackupAction =
   | { kind: "read"; offset: number }
   | { kind: "check_source" }
-  | { kind: "capture" | "restore"; relay: string; approved: boolean };
+  | {
+      kind: "discover";
+      lookupRelays: string[];
+      approved: boolean;
+    }
+  | {
+      kind: "capture";
+      relay: string;
+      approved: boolean;
+      profile?: CollectionProfile;
+    }
+  | { kind: "restore"; relay: string; approved: boolean };
 export type BackupOutput = {
   requestId: string;
   binding: { vaultId: string; token: string; generation: number };
@@ -14,6 +30,7 @@ export type BackupOutput = {
   excluded: number;
   notes: { id: string; content: string; createdAt: number }[];
   outcome: string;
+  suggestions: string[];
   restore: null | {
     destination: string;
     checkedAt: number;
@@ -80,6 +97,9 @@ export function parseBackup(v: unknown): BackupOutput {
       };
     }),
     outcome: text(v.outcome, 64),
+    suggestions: Array.isArray(v.suggestions)
+      ? v.suggestions.map((s) => text(s))
+      : [],
     restore,
   };
 }

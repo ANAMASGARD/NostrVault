@@ -18,6 +18,10 @@ use tokio_tungstenite::{
 };
 use vault_core::{
     backup::{Backup, Binding, Event, LIMIT},
+    collection::{
+        self, merge_suggestions, relay_hints_from_metadata, validate_lookup_relays,
+        CollectionProfile, RelayHint,
+    },
     vault::{Error, Result},
 };
 static RUNNING: AtomicBool = AtomicBool::new(false);
@@ -32,10 +36,29 @@ pub struct Request {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
-    Read { offset: usize },
-    Capture { relay: String, approved: bool },
+    Read {
+        offset: usize,
+    },
+    Discover {
+        #[serde(rename = "lookupRelays")]
+        lookup_relays: Vec<String>,
+        approved: bool,
+    },
+    Capture {
+        relay: String,
+        approved: bool,
+        #[serde(default = "default_profile")]
+        profile: CollectionProfile,
+    },
     CheckSource,
-    Restore { relay: String, approved: bool },
+    Restore {
+        relay: String,
+        approved: bool,
+    },
+}
+
+fn default_profile() -> CollectionProfile {
+    CollectionProfile::PublicHistory
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +82,8 @@ pub struct Output {
     pub notes: Vec<Note>,
     pub outcome: &'static str,
     pub restore: Option<RestoreReport>,
+    #[serde(default)]
+    pub suggestions: Vec<String>,
 }
 fn output(
     request: &Request,
@@ -66,6 +91,7 @@ fn output(
     offset: usize,
     outcome: &'static str,
     restore: Option<RestoreReport>,
+    suggestions: Vec<String>,
 ) -> Output {
     Output {
         request_id: request.request_id.clone(),
@@ -92,6 +118,7 @@ fn output(
             .unwrap_or_default(),
         outcome,
         restore: restore.or_else(|| data.and_then(|d| d.recovery.clone())),
+        suggestions,
     }
 }
 async fn connect(relay: &str) -> Result<Socket> {
@@ -185,6 +212,55 @@ async fn query(
     }
     Err(Error::Limit)
 }
+
+async fn discover(
+    runtime: &Runtime,
+    binding: &Binding,
+    lease: &BackupLease,
+    lookup_relays: &[String],
+    account: &str,
+) -> Result<Vec<String>> {
+    validate_lookup_relays(lookup_relays)?;
+    let mut merged = BTreeSet::new();
+    for lookup in lookup_relays {
+        runtime.backup_check(binding, lease)?;
+        let mut socket = connect(lookup).await?;
+        for kind in [10002_u16, 10050_u16] {
+            let id = hex::encode(vault_core::vault::random::<16>(
+                &mut crate::vault::OsEntropy,
+            )?);
+            send(
+                &mut socket,
+                json!(["REQ", id, {"authors":[account],"kinds":[kind],"limit":1}]),
+            )
+            .await?;
+            for _ in 0..64 {
+                runtime.backup_check(binding, lease)?;
+                let value = receive(&mut socket).await?;
+                match value[0].as_str() {
+                    Some("EOSE") if value[1] == id => break,
+                    Some("EVENT") if value[1] == id => {
+                        if value.as_array().map(Vec::len) != Some(3) {
+                            return Err(Error::Malformed);
+                        }
+                        let event: Event = serde_json::from_value(value[2].clone())
+                            .map_err(|_| Error::Malformed)?;
+                        let hints: Vec<RelayHint> = relay_hints_from_metadata(&event, account)?;
+                        merge_suggestions(&mut merged, &hints);
+                    }
+                    Some("AUTH") | Some("CLOSED") => return Err(Error::Unsupported),
+                    _ => {}
+                }
+            }
+            let _ = send(&mut socket, json!(["CLOSE", id])).await;
+        }
+    }
+    Ok(merged
+        .into_iter()
+        .take(collection::MAX_HISTORY_SUGGESTIONS)
+        .collect())
+}
+
 pub async fn execute(runtime: Arc<Runtime>, request: Request) -> Result<Output> {
     if !cfg!(target_os = "linux") {
         return Err(Error::Unsupported);
@@ -225,6 +301,26 @@ async fn execute_inner(runtime: &Runtime, request: &Request) -> Result<Output> {
                 *offset,
                 "offline_ready",
                 None,
+                vec![],
+            ))
+        }
+        Action::Discover {
+            lookup_relays,
+            approved,
+        } => {
+            if !approved {
+                return Err(Error::Authentication);
+            }
+            let account = lease.account.as_ref().ok_or(Error::Authentication)?;
+            let suggestions =
+                discover(runtime, &request.binding, &lease, lookup_relays, account).await?;
+            Ok(output(
+                request,
+                lease.data.as_ref(),
+                0,
+                "discovery_ready",
+                None,
+                suggestions,
             ))
         }
         Action::CheckSource => {
@@ -234,11 +330,18 @@ async fn execute_inner(runtime: &Runtime, request: &Request) -> Result<Output> {
                 Err(_) => "source_unavailable",
             };
             runtime.backup_check(&request.binding, &lease)?;
-            Ok(output(request, Some(data), 0, state, None))
+            Ok(output(request, Some(data), 0, state, None, vec![]))
         }
-        Action::Capture { relay, approved } => {
+        Action::Capture {
+            relay,
+            approved,
+            profile,
+        } => {
             if !approved {
                 return Err(Error::Authentication);
+            }
+            if !profile.implemented() {
+                return Err(Error::Unsupported);
             }
             let account = lease.account.as_ref().ok_or(Error::Authentication)?;
             let current = lease
@@ -258,6 +361,7 @@ async fn execute_inner(runtime: &Runtime, request: &Request) -> Result<Output> {
                 0,
                 "backup_saved",
                 None,
+                vec![],
             ))
         }
         Action::Restore { relay, approved } => {
@@ -350,7 +454,14 @@ async fn execute_inner(runtime: &Runtime, request: &Request) -> Result<Output> {
             let mut saved = data.clone();
             saved.recovery = Some(report.clone());
             runtime.backup_commit(&request.binding, &lease, &saved)?;
-            Ok(output(request, Some(&saved), 0, state, Some(report)))
+            Ok(output(
+                request,
+                Some(&saved),
+                0,
+                state,
+                Some(report),
+                vec![],
+            ))
         }
     }
 }

@@ -7,6 +7,11 @@ export function Backup({ host }: { host: VaultRuntime }) {
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
   const [approved, setApproved] = useState(false);
+  const [lookupDamus, setLookupDamus] = useState(true);
+  const [lookupNos, setLookupNos] = useState(true);
+  const [profile, setProfile] = useState<
+    "public_history" | "legacy_direct_messages" | "gift_wraps"
+  >("public_history");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [offset, setOffset] = useState(0);
@@ -63,17 +68,98 @@ export function Backup({ host }: { host: VaultRuntime }) {
   if (!linux) return null;
   return (
     <section aria-labelledby="backup-title">
-      <h3 id="backup-title">Back up and recover public notes</h3>
+      <h3 id="backup-title">Collect and recover public notes</h3>
       <p>
-        Linux preview · one account per vault · public text notes only. Manual
-        backup, up to 255 events per relay response and 256 retained notes. No
-        completeness guarantee, automatic capture, or private chats.
+        Milestone 05 · Linux · manual collection from approved relays. Public
+        history is implemented; legacy DMs and gift wraps require a later
+        commit. Up to 256 notes; no completeness guarantee.
       </p>
+      <fieldset>
+        <legend>Lookup relays (max 3, for metadata only)</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={lookupDamus}
+            onChange={(e) => setLookupDamus(e.target.checked)}
+            disabled={busy}
+          />
+          wss://relay.damus.io
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={lookupNos}
+            onChange={(e) => setLookupNos(e.target.checked)}
+            disabled={busy}
+          />
+          wss://nos.lol
+        </label>
+        <button
+          type="button"
+          disabled={busy || (!lookupDamus && !lookupNos)}
+          onClick={() => {
+            const lookupRelays: string[] = [];
+            if (lookupDamus) lookupRelays.push("wss://relay.damus.io");
+            if (lookupNos) lookupRelays.push("wss://nos.lol");
+            void run({
+              kind: "discover",
+              lookupRelays,
+              approved: true,
+            });
+          }}
+        >
+          Discover history relay hints
+        </button>
+        {view?.suggestions?.length ? (
+          <ul>
+            {view.suggestions.map((relay) => (
+              <li key={relay}>
+                {relay}{" "}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setSource(relay)}
+                >
+                  Use as source
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </fieldset>
+      <label>
+        Collection profile
+        <select
+          value={profile}
+          onChange={(e) =>
+            setProfile(
+              e.target.value as
+                | "public_history"
+                | "legacy_direct_messages"
+                | "gift_wraps",
+            )
+          }
+          disabled={busy}
+        >
+          <option value="public_history">Public notes (kind 1)</option>
+          <option value="legacy_direct_messages" disabled>
+            Legacy DMs (NIP-04) — not in this commit
+          </option>
+          <option value="gift_wraps" disabled>
+            Gift wraps (NIP-17) — not in this commit
+          </option>
+        </select>
+      </label>
       {error && <p role="alert">{error}</p>}
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void run({ kind: "capture", relay: source, approved: true });
+          void run({
+            kind: "capture",
+            relay: source,
+            approved: true,
+            profile,
+          });
         }}
       >
         <label>

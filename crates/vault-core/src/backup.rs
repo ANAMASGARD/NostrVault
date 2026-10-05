@@ -37,6 +37,8 @@ pub struct Backup {
     pub suppressed: BTreeSet<String>,
     pub excluded: usize,
     pub recovery: Option<Recovery>,
+    #[serde(default)]
+    pub provenance: BTreeMap<String, BTreeSet<String>>,
 }
 impl Backup {
     pub fn empty(account: String) -> Self {
@@ -49,6 +51,7 @@ impl Backup {
             suppressed: BTreeSet::new(),
             excluded: 0,
             recovery: None,
+            provenance: BTreeMap::new(),
         }
     }
     pub fn parse(bytes: &[u8]) -> Result<Self> {
@@ -110,7 +113,11 @@ impl Backup {
         for event in events.into_iter().filter(|e| e.kind.as_u16() == 1) {
             let id = event.id.to_hex();
             if eligible(&event, now) && !next.suppressed.contains(&id) {
-                next.notes.insert(id, event);
+                next.notes.insert(id.clone(), event);
+                next.provenance
+                    .entry(id)
+                    .or_default()
+                    .insert(source.to_string());
             } else {
                 next.excluded = next.excluded.saturating_add(1);
             }
@@ -207,5 +214,24 @@ mod tests {
         altered.content.push('x');
         assert!(validate(&altered, &base.account).is_err());
         assert_eq!(Backup::parse(&one.bytes().unwrap()).unwrap().notes.len(), 1);
+    }
+    #[test]
+    fn duplicate_ids_keep_multiple_provenance_relays() {
+        let note = event(1, vec![]);
+        let account = note.pubkey.to_hex();
+        let base = Backup::empty(account);
+        let one = base
+            .merge("wss://source-a.example", vec![note.clone()], 200)
+            .unwrap();
+        let two = one
+            .merge("wss://source-b.example", vec![note], 200)
+            .unwrap();
+        assert_eq!(two.notes.len(), 1);
+        assert_eq!(
+            two.provenance
+                .get(&two.notes.keys().next().unwrap().clone())
+                .map(|s| s.len()),
+            Some(2)
+        );
     }
 }
