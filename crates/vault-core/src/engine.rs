@@ -3,7 +3,7 @@
 use crate::vault::{Error, Result};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionPolicy {
     pub keep_running: bool,
@@ -16,15 +16,6 @@ pub enum WindowClose {
     PauseReadable,
     ContinueEncryptedCapture,
     Stop,
-}
-
-impl Default for SessionPolicy {
-    fn default() -> Self {
-        Self {
-            keep_running: false,
-            capture_while_locked: false,
-        }
-    }
 }
 
 pub fn on_window_close(policy: &SessionPolicy) -> WindowClose {
