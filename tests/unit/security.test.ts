@@ -9,14 +9,18 @@ const capability: unknown = JSON.parse(
 );
 
 describe("foundation security configuration", () => {
-  it("limits the local main window to runtime and isolated proof commands", () => {
+  it("limits the local main window to vault, runtime and isolated proof commands", () => {
     expect(capability).toEqual({
       $schema: "../gen/schemas/desktop-schema.json",
       identifier: "default",
       description:
-        "Local runtime and isolated foundation proof commands; no plugin access",
+        "Local vault, runtime and isolated foundation proof commands; no plugin access",
       windows: ["main"],
-      permissions: ["allow-runtime-info", "allow-foundation-proof"],
+      permissions: [
+        "allow-runtime-info",
+        "allow-foundation-proof",
+        "allow-vault-command",
+      ],
     });
   });
   it("requires a production CSP without arbitrary execution or remote connections", () => {

@@ -1,3 +1,42 @@
+## Milestone 03 implementation — 2026-10-05 — milestone-03-vault
+
+- **Base:** Created from verified merged M02 `origin/main` at `1f1b2ea3a3653581b16c3f2cfa3bb12e69fc11fa`, preserving older branches. PR #2 had passed both hosted platform jobs and was merged before this work.
+- **Implemented:** Rust-owned production vault/session contracts; random root-key wrapping; encrypted account-isolated records and local setup; native SQLite and browser IndexedDB adapters; ownership, cancellation, restart recovery and password changes. React exposes create/unlock/lock/change-password with accessible forms and honest readiness copy. Foundation diagnostics remain isolated.
+- **Parameters:** Argon2id v19, exactly 65536 KiB, three passes, four lanes, 16-byte salt, 32-byte output; XChaCha20-Poly1305 nonce 24 bytes; HKDF-SHA256/HMAC-SHA256 account separation. Vault/wrapper/record format 1 and storage schema 2 are separate. Exact UTF-8 passwords, minimum 12 Unicode scalar values for creation/change, maximum 1024 bytes. No normalization or weaker fallback. Explicit zeroizing Argon2 workspace is necessary because the pinned library's allocation helper does not clear that workspace.
+- **Durability:** Header/setup creation and wrapper replacement are atomic. Revision conflicts fail; payload migrations stage ciphertext and preserve active data until commit. Native ownership uses an OS-locked file shared by Tauri/JNI; browsers hold an exclusive Web Lock and terminate/recreate the Worker on lock. A replacement runtime reconciles committed state. Password changes require old-password verification and force re-unlock without rewriting record ciphertext.
+- **Ingress:** Internal native age X25519 primitives encrypt fresh ingress identities inside the vault and transactionally merge sealed batches into an untrusted-candidate namespace with encrypted replay receipts. Limits: 1 MiB plaintext envelope, 64 KiB overhead, 64 MiB or 256 pending batches. Strict pause remains the default; there is no capture switch or background collector. Confidentiality does not establish submitter authentication or Nostr validity.
+- **Verification:** `npm run verify:commit` passed **20/20 commands in 4m49.41s** on the final implementation candidate. Evidence is under ignored `test-results/gate-all.json` and `test-results/m03-final-gate.log`. Coverage: 31 TypeScript unit cases, seven Python policy tests, five core tests, seven native tests, one Tauri test, 34 Chromium/Firefox cases, and five separately invoked Android instrumentation tests. Linux DEB/RPM and actual WebKit runtime, Android debug/unsigned ARM64 release, exact lint audit and emulator execution passed. Added real process/browser restarts, Activity recreation/process relaunch, account and tampering checks, transactional rollback/migration/quota fault injection, stale-result handling, ownership contention, cross-runtime records and privacy-marker scans. M01/M02 checks and exact nine Android lint exceptions remain required.
+- **Limits:** Browser eviction and durability limits; visible random identifiers, sizes/counts and opaque equality; imperfect memory erasure; no whole-store rollback prevention. ARM64 compilation is distinct from x86_64 emulator execution. No physical-device benchmark, signer, relay collection, conversation backup, archive, keystore convenience unlock or background execution is claimed. See `docs/vault-storage.md` and `docs/verification.md`.
+- **Delivery authorization:** The maintainer subsequently requested a signed-off commit, push and PR. The final candidate passed all required local gates and intended-path review; no merge or deployment is authorized. Hosted PR checks remain separate from these local results. Next milestone remains M04.
+
+### M03 KDF measurements and evidence
+
+Each host uses the unchanged production profile, one warm-up and five measured
+derivations. The browser measurement-only rerun used one Playwright worker;
+native measurement used the release binary directly under `/usr/bin/time -v`.
+These are local observations, not latency guarantees or physical-device evidence.
+
+| Runtime                                         | Five measured derivations (milliseconds)    | Memory evidence                                                                 |
+| ----------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
+| Chromium 153.0.8010.12 / Rust WASM              | 127.1, 129.5, 126.6, 126.4, 130.3           | 65536 KiB explicit workspace; browser RSS not isolated                          |
+| Firefox 155.0 / Rust WASM                       | 139, 137, 135, 137, 136                     | 65536 KiB explicit workspace; browser RSS not isolated                          |
+| Fedora 44 x86_64 / Rust 1.98.0 release          | 92.842, 93.670, 94.313, 93.895, 93.133      | 65536 KiB workspace; isolated-process peak RSS 67404 KiB                        |
+| Android 16/API36 x86_64 emulator / headless JNI | 162.404, 131.913, 125.633, 122.779, 124.554 | 65536 KiB workspace; 2048 MiB configured emulator RAM; process RSS not isolated |
+
+Actual host: Linux 7.2.8-200.fc44.x86_64, Node 22.23.1/npm 11.8.0,
+Rust 1.98.0, Java 17, NDK 27.1.12297006. Android WebView was
+133.0.6943.137. Browser KDF measurements, encrypted record exchange and positive
+control scans use public test fixtures only. Runtime/gate logs also passed the
+fixture password/body-marker scan. Fault injection tests transaction rollback;
+it is not physical power-loss or forensic-erasure evidence. Authentication does
+not establish storage freshness, including replay of old authenticated records.
+
+Commands: `npm run verify:commit`; `npx --no-install playwright test tests/web/vault.spec.ts --grep 'production KDF isolated' --workers=1`;
+`/usr/bin/time -v src-tauri/target/release/examples/vault_benchmark`.
+The isolated browser rerun passed both cases. Final evidence-only documentation
+edits are checked with Prettier and `git diff --check`. No KDF protection was
+reduced. Device convenience unlock and M04 implementation remain unstarted.
+
 ## Milestone 02 implementation — 2026-10-05 — milestone-02-core
 
 - **Implemented:** Root Cargo workspace with one lockfile, portable `crates/vault-core`, SQLite/JNI `crates/vault-native`, Worker adapter `crates/vault-wasm`, shared age adapter, bounded runtime contracts and isolated encrypted fixture stores. Tauri permits only runtime health and the foundation command. Browser replaces the numeric probe with the real shared engine; old probe sources and nested lockfiles were removed after all replacement platform prechecks passed.

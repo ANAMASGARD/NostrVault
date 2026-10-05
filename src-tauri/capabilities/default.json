@@ -1,7 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Local runtime and isolated foundation proof commands; no plugin access",
+  "description": "Local vault, runtime and isolated foundation proof commands; no plugin access",
   "windows": ["main"],
-  "permissions": ["allow-runtime-info", "allow-foundation-proof"]
+  "permissions": [
+    "allow-runtime-info",
+    "allow-foundation-proof",
+    "allow-vault-command"
+  ]
 }

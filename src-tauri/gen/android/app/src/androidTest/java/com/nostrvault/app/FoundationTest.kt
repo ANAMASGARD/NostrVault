@@ -59,10 +59,15 @@ class FoundationTest {
     @Test
     fun bundledAppCallsRustAndSurvivesActivityRecreation() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            val status = "document.querySelector('[role=status]')?.textContent"
+            val status =
+                "document.querySelector('[aria-labelledby=foundation-title] [role=status]')?.textContent"
             awaitText(scenario, "document.title", "NostrVault")
+            evaluate(scenario, "document.querySelector('details').open = true")
             awaitText(scenario, status, "Not checked")
-            evaluate(scenario, "document.querySelector('button').click()")
+            evaluate(
+                scenario,
+                "Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Check runtime').click()",
+            )
             awaitText(scenario, status, "Native runtime ready: android · 0.1.0")
             evaluate(
                 scenario,
@@ -74,10 +79,17 @@ class FoundationTest {
                 "true",
             )
             scenario.recreate()
+            evaluate(scenario, "document.querySelector('details').open = true")
             awaitText(scenario, status, "Not checked")
-            evaluate(scenario, "document.querySelector('button').click()")
+            evaluate(
+                scenario,
+                "Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Check runtime').click()",
+            )
             awaitText(scenario, status, "Native runtime ready: android · 0.1.0")
-            evaluate(scenario, "document.querySelectorAll('button')[1].click()")
+            evaluate(
+                scenario,
+                "Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Check shared engine').click()",
+            )
             awaitText(
                 scenario,
                 "document.querySelector('[data-testid=foundation-result]')?.textContent",

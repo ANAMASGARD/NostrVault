@@ -17,7 +17,7 @@ test("loads the production web app, checks runtime, and reloads without native I
     if (new URL(request.url()).origin !== "http://127.0.0.1:1420")
       external.push(request.url());
   });
-  await page.goto("/");
+  await page.goto("/?diagnostics");
   await expect(
     page.getByRole("heading", { name: "NostrVault", exact: true }),
   ).toBeVisible();
@@ -45,7 +45,7 @@ test("fits a narrow mobile viewport without horizontal overflow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 740 });
-  await page.goto("/");
+  await page.goto("/?diagnostics");
   await expect(
     page.getByRole("button", { name: "Check runtime" }),
   ).toBeVisible();
@@ -72,7 +72,7 @@ for (const failure of ["missing", "corrupt", "unloadable"] as const) {
           body: "not a wasm module",
         });
     });
-    await page.goto("/");
+    await page.goto("/?diagnostics");
     await page.getByRole("button", { name: "Check shared engine" }).click();
     await expect(page.getByTestId("foundation-result")).toHaveText(
       "Foundation check failed or cancelled. Try again.",

@@ -1,6 +1,6 @@
 # Approved product contract
 
-This describes intended behavior, not delivered features. The milestone 01 screen only checks its host runtime. The existing 15-milestone plan remains authoritative.
+This describes intended behavior, not delivered features. Milestone 03 implements only local vault protection and resumable local setup. Account connection and backup remain unavailable. The existing 15-milestone plan remains authoritative.
 
 ## First-run experience (03–07)
 

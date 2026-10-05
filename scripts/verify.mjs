@@ -67,6 +67,7 @@ const gates = {
       "warnings",
     ],
     ["cargo", "test", "--locked", "-p", "vault-native", "-p", "nostrvault"],
+    ["node", "scripts/verify-vault.mjs"],
     [
       "npm",
       "run",

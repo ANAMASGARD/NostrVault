@@ -1,6 +1,8 @@
 #[path = "../../shared/age_proof.rs"]
 pub mod age_proof;
+pub mod spool;
 pub mod storage;
+pub mod vault;
 use std::path::Path;
 use vault_core::{
     ErrorCode, FoundationError, FoundationRequest, FoundationResponse, FoundationResult,
@@ -176,4 +178,68 @@ mod tests {
         assert_eq!(response.error.unwrap().code, ErrorCode::Busy);
         assert!(response.result.is_none());
     }
+}
+
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_nostrvault_app_HeadlessVault_nativeRun<'caller>(
+    mut unowned_env: jni::EnvUnowned<'caller>,
+    _object: jni::objects::JObject<'caller>,
+    request: jni::objects::JString<'caller>,
+    path: jni::objects::JString<'caller>,
+) -> jni::objects::JString<'caller> {
+    static HOST: std::sync::OnceLock<vault::Runtime> = std::sync::OnceLock::new();
+    let outcome = unowned_env.with_env(|env| -> std::result::Result<_, jni::errors::Error> {
+        let length = env
+            .call_method(&request, jni::jni_str!("length"), jni::jni_sig!("()I"), &[])?
+            .i()?;
+        if length > 16384 {
+            return jni::objects::JString::from_str(env, "{\"error\":\"limit\"}");
+        }
+        let request = zeroize::Zeroizing::new(request.try_to_string(env)?);
+        let path = path.try_to_string(env)?;
+        let result = (|| -> vault_core::vault::Result<_> {
+            if HOST.get().is_none() {
+                let host = vault::Runtime::new(std::path::PathBuf::from(path))?;
+                let _ = HOST.set(host);
+            }
+            let request =
+                serde_json::from_str(&request).map_err(|_| vault_core::vault::Error::Malformed)?;
+            HOST.get()
+                .ok_or(vault_core::vault::Error::Storage)?
+                .execute(&request)
+        })();
+        let response = match result {
+            Ok(status) => serde_json::json!({"status":status}),
+            Err(error) => serde_json::json!({"error":error}),
+        };
+        jni::objects::JString::from_str(env, response.to_string())
+    });
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_nostrvault_app_HeadlessVault_nativeBenchmark<'caller>(
+    mut unowned_env: jni::EnvUnowned<'caller>,
+    _object: jni::objects::JObject<'caller>,
+) -> jni::objects::JString<'caller> {
+    let outcome = unowned_env.with_env(|env| -> std::result::Result<_, jni::errors::Error> {
+        let mut times = Vec::new();
+        for run in 0..6 {
+            let start = std::time::Instant::now();
+            if vault_core::vault::derive("benchmark test only", &[7; 16]).is_err() {
+                return jni::objects::JString::from_str(env, "{\"error\":\"crypto\"}");
+            }
+            if run > 0 {
+                times.push(start.elapsed().as_secs_f64() * 1000.0);
+            }
+        }
+        jni::objects::JString::from_str(
+            env,
+            serde_json::json!({"profile":"65536KiB/t3/p4","milliseconds":times,"memoryKiB":65536})
+                .to_string(),
+        )
+    });
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }

@@ -69,11 +69,14 @@ try {
     await delay(250);
   }
   assert.equal(await script("return document.title"), "NostrVault");
-  await script('document.querySelector("button").click()');
+  await script('document.querySelector("details").open=true');
+  await script(
+    `Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Check runtime').click()`,
+  );
   let status;
   for (let attempt = 0; attempt < 40; attempt++) {
     status = await script(
-      'return document.querySelector("[role=status]").textContent',
+      'return document.querySelector("[aria-labelledby=foundation-title] [role=status]").textContent',
     );
     if (status.startsWith("Native runtime ready")) break;
     await delay(250);
@@ -109,8 +112,63 @@ try {
     false,
     "Production CSP must reject inline scripts",
   );
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (
+      await script(
+        'return Array.from(document.querySelectorAll("button")).some(b=>b.textContent==="Create vault")',
+      )
+    )
+      break;
+    await delay(250);
+  }
+  const fill = async (label, value) =>
+    script(
+      `const input=Array.from(document.querySelectorAll('label')).find(l=>l.firstChild.textContent===${JSON.stringify(label)}).querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));`,
+    );
+  await fill("Password", "linux fixture password");
+  await fill("Confirm password", "linux fixture password");
+  await script(
+    `Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('I understand')).querySelector('input').click()`,
+  );
+  await script(
+    `Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Create vault').click()`,
+  );
+  let saved = false;
+  for (let attempt = 0; attempt < 120; attempt++) {
+    saved = await script(
+      `return document.body.textContent.includes('Setup saved securely')`,
+    );
+    if (saved) break;
+    await delay(250);
+  }
+  assert(saved, "Linux real vault creation did not commit");
+  await script(
+    `Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Lock now').click()`,
+  );
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (
+      await script(
+        `return Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Unlock')`,
+      )
+    )
+      break;
+    await delay(250);
+  }
+  await fill("Password", "linux fixture password");
+  await script(
+    `Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Unlock').click()`,
+  );
+  saved = false;
+  for (let attempt = 0; attempt < 120; attempt++) {
+    saved = await script(
+      `return document.body.textContent.includes('Setup saved securely')`,
+    );
+    if (saved) break;
+    await delay(250);
+  }
+  assert(saved, "Linux real vault unlock failed");
   console.log(
-    "PASS Linux packaged release launch, shared crypto/storage proof, real Rust IPC, denied unapproved IPC, production CSP",
+    "PASS Linux packaged release launch, shared crypto/storage proof, real vault create/lock/unlock, real Rust IPC, denied unapproved IPC, production CSP",
   );
 } catch (error) {
   console.error(
